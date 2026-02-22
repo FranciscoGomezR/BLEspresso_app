@@ -1,0 +1,497 @@
+Project in Adnroid
+How to copy and change project's name: https://www.youtube.com/watch?v=5LZj3JJLbSM&ab_channel=syncbricks
+
+BLE tutorial: https://www.youtube.com/watch?v=qyG-SDfYNBE&t=422s&ab_channel=KApps
+
+
+Device name = BLEspresso
+
+RemoteControlScreen.kt
+Last action: button [line 386]
+onTap → will perform a READ to a characteristic from device
+
+RemoteControlViewModel
+last action: viewModelScope.launch [line58]
+at the same rate BLespresso is sending data to mobile, it will also collect data from characteristic readed
+
+RemoteControlReceiveManager
+dataToRead [18]
+this data will store data from characteristic readed
+
+
+RemoteControlBLEReceiveManager
+
+override fun onCharacteristicRead [line 168] within scanCallback function
+private fun readCharacteristicsDevice [line 237] this function perfome the read of char
+override fun rxReadBoilerTargetTemp() [line 322] this the public function that it is call to read the char.
+
+DATA FROM DEVICE TO SCREEN(read a characteristic to Screen)
+//////////////////////////////////////////////////////////////////////////////////////////////////
+click button in RemoteControlScreen.kt which will call: viewModel.rxNewBoilerTargetTemp()
+viewModel.rxNewBoilerTargetTemp() is in: RemoteControlViewModel.class
+the view model will call a function: rxReadBoilerTargetTemp() 
+	declare in: RemoteControlReceiveManager.interface
+	define in: RemoteControlBLEReceiveManager.kt
+in BoilerDataCharacteristics.kt → override fun rxReadBoilerTargetTemp()
+	This fun will get the UUID of the char to read and call: readCharacteristicsDevice(characteristictoRead)
+	
+this function: private fun readCharacteristicsDevice(characteristic: BluetoothGattCharacteristic) 
+	send read command to mobile
+	
+then this function is trigger: override fun onCharacteristicRead()
+	in which we can short data read from a specific UUID
+	how to read? 
+		super.onCharacteristicRead(gatt, characteristic, status)
+        rxString = characteristic?.getStringValue(0).toString()
+	How to pass data to screen?
+		1st: creat a val type: BoilerSetpoint
+			val targetTemp = BoilerSetpoint(rxtemperature,ConnectionState.Connected)
+		2nd: call coroutineScope
+			coroutineScope.launch {dataToRead.emit(Resource.Success(data = targetTemp))}
+			
+		How to create var: BoilerSetpoint?
+			1st: define val class type in: BoilerDataCharacteristics.kt
+				→ data class BoilerSetpoint(val targetTemperature    : Float, val connectionState: ConnectionState)
+			2nd: Declare val (dataToRead) in RemoteControlReceiveManager.interface
+				→ val dataToRead:MutableSharedFlow<Resource<BoilerSetpoint>>
+			3rd: override val in: RemoteControlBLEReceiveManager.kt 
+				→ override val dataToRead: MutableSharedFlow<Resource<BoilerSetpoint>> = MutableSharedFlow()
+				
+	then, how to pass infor from coroutineScope to Screen?
+		1st: need so check changes in the view model: RemoteControlViewModel.kt
+			→ viewModelScope.launch {
+				remoteControlReceiveManager.dataToRead.collectLatest  { result ->
+		2nd : we pass the data from RemoteControle-ViewModel to ScreenViewModel
+			→ boilerSetpointTemp = result.data.targetTemperature
+			
+			How to create boilerSetpointTemp variable?
+			1st: declare and define in: RemoteControlViewModel.kt
+				→ var boilerSetpointTemp by mutableStateOf(0f)
+				
+	Then the value in printed in the Screen:
+		BoilerTemperatureProgressIndicator(boilerTargetTemp = viewModel.boilerSetpointTemp)
+		
+		
+DATA TO BLE (from Screen to BLE)
+//////////////////////////////////////////////////////////////////////////////////////////////////		
+1- button click event occurs in RemoteControlScreen.kt 
+	a - this event store/pass data defined in the viewmodel constructor of the page
+		like: viewModel.txNewBrewConfigData.PreInfussionPwr = cPreinfusionPWR_TB.userInput.text.toFloat()
+		
+2- Then, the click event calls a function declared in viewmodel (RemoteControlViewModel.ky) -> viewModel.txNewBrewConfiguration()
+3- Inside the RemoteControlViewModel.ky the function called by the RemoteControlScreen -> viewModel.txNewBrewConfiguration() calls the fcn: remoteControlReceiveManager.txfcnWriteBrewConfiguration(txNewBrewConfigData)
+	a -  And passes the variable:  txNewBrewConfigData  to the RemoteControlReceiveManager which us just an interface for the VIEW_MODULATOR
+4 - the function txfcnWriteBrewConfiguration(newTxData: C_BrewConfigData) is override in RemoteControlBLEReceiveManager.kt
+	a - this function call the function -> writeCharacteristicsDevice() several times to send all data to the characteristic of the BLE
+
+
+
+
+CREATE A NEW SCREEN(ENTER AND GOING BACK TO MAIN)
+//////////////////////////////////////////////////////////////////////////////////////////////////
+go to second screen - DONE
+go back to main screen - it works but how I want it - PARTIAL TODO 
+
+CTRL Param TO BLE (from Controller Screen to BLE)
+//////////////////////////////////////////////////////////////////////////////////////////////////		
+1- button click event occurs in ControllerParameterScreen.kt   LINE -> 403
+	a - this event store/pass data defined in the viewmodel constructor of the page
+		like: viewModel.txNewPIDConfigData.cfgPterm = cPterm_TB.userInput.text.toFloat()
+		
+2- Then, the click event calls a function declared in viewmodel (RemoteControlViewModel.ky) -> viewModel.txNewPIDConfiguration()
+
+3- Inside the RemoteControlViewModel.ky the function called by the RemoteControlScreen -> viewModel.txNewBrewConfiguration() calls the fcn: remoteControlReceiveManager.txfcnWriteBrewConfiguration(txNewBrewConfigData)
+	a -  And passes the variable:  txNewBrewConfigData  to the RemoteControlReceiveManager which us just an interface for the VIEW_MODULATOR
+	
+4 - the function txfcnWriteBrewConfiguration(newTxData: C_BrewConfigData) is override in RemoteControlBLEReceiveManager.kt
+	a - this function call the function -> writeCharacteristicsDevice() several times to send all data to the characteristic of the BLE
+
+
+
+Brew  parameter.
+Write: check
+Read: check (it works at the 2nd attemp)
+ToDo: Store values in FLASH
+
+PID paramters:
+Write: 1st part done, need to write into right variable
+Todo: Readback PID param.
+ToDo: Store values in FLASH
+
+dataPIDcfgPterm:       
+dataPIDcfgIterm:       
+dataPIDcfgImaxterm:    
+dataPIDcfgWindup:      
+dataPIDcfgDterm:       
+dataPIDcfgDlpfterm:    
+dataPIDcfgGainterm:
+
+cfgPterm:       
+cfgIterm:       
+cfgImaxterm:    
+cfgWindup:      
+cfgDterm:       
+cfgDlpfterm:    
+cfgGainterm:
+
+cPreinfusionPWR_TB
+cPreinfusionTMR_TB
+cInfusionPWR_TB
+cInfusionTMR_TB
+cDeclinPrPWR_TB
+cDeclinPrTMR_TB
+
+cPterm_TB
+cIterm_TB
+cIlimit_TB
+cIwindup_TB
+cDterm_TB
+cLPFterm_TB
+cGainterm_TB
+
+PID controller parameters Screen block
+
+Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .background(color_3_3_BoxBackground)
+                    .padding(top = 1.dp, bottom = 1.dp) // Add spacing between rows
+            ) { // Content for the third row
+                Column(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(5.dp),
+                ) {
+                    //  PID-CONTROLLER CONFIGURATION MENU
+                    //  ----------------------------------------------------------------------------
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            text = "Controller Configuration",
+                            modifier = Modifier.padding(start = 10.dp, top = 2.dp),
+                            style = TextStyle(fontSize = 17.sp, color = color_3_3_BoxTitleText)
+                        )
+                    }
+                    //  TABLE PARAMETER TITLE   ----------------------------------------------------
+                    Row(
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+                            .size(width = 380.dp, height = 18.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly ,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column( // 1 COLUMN → Parameters------------------------
+                            modifier = Modifier.weight(3f),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) { Text(text = "Parameter",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                        }
+                        Column( // 2 COLUMN → Minimum--------------------------
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) { Text(text = "Min.",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                        }
+                        Column( // 3 COLUMN → Input----------------------------
+                            modifier = Modifier.weight(2f),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) { Text(text = "Value",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                        }
+                        Column( // 4 COLUMN → Maximum--------------------------
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) { Text(text = "Max.",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                        }
+                        Column( // 5 COLUMN → Units----------------------------
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) { Text(text = "Unit",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                        }
+                    }
+                    Divider( //  TITLE DIVIDER   ---------------------------------------------------
+                        color = color_3_3_BoxTitleDivider,
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+                            .size(width = 380.dp, height = 1.dp)
+                    )
+                    //  Brew Table Content  --------------------------------------------------------
+                    Row(    //Table SIZE
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+                            .size(width = 380.dp, height = 134.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly ,
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column( // 1 COLUMN → Parameters------------------------
+                            modifier = Modifier
+                                .weight(3f)
+                                .padding(start = 15.dp, top = 2.dp)
+                        ) {
+                            Text(text = "Proportional",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                            Text(text = "Integral",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                            Text(text = "Integral Limit",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                            Text(text = "Integral Windup",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                            Text(text = "Derivative",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                            Text(text = "LPF Freq. Cut",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                            Text(text = "System Gain",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))
+                        }
+                        Column( // 2 COLUMN → Minimum--------------------------
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 2.dp),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) {
+                            Text(text = cPterm_TB.minInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Proportional
+                            Text(text = cIterm_TB.minInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral
+                            Text(text = cIlimit_TB.minInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral Limit
+                            Text(text = cIwindup_TB.minInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral Windup
+                            Text(text = cDterm_TB.minInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Derivative
+                            Text(text = cLPFterm_TB.minInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))  //LPF Freq. Cut
+                            Text(text = cGainterm_TB.minInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))  //System Gain
+                        }
+                        Column( // 3 COLUMN → Input----------------------------
+                            modifier = Modifier
+                                .weight(2f)
+                                .padding(top = 2.dp),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) {
+                            BasicTextField( // Proportional Term INPUT
+                                value = cPterm_TB.userInput,
+                                onValueChange = { newText ->
+                                    processTextFieldInput(newText,cPterm_TB) },
+                                cursorBrush = SolidColor(Cyan800),
+                                textStyle = TextStyle(color = color_3_3_BoxInputText, fontSize = 14.sp,textAlign = TextAlign.Center),
+                                modifier = Modifier.background(color_3_3_BoxInputBackground),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    processKeyboardDoneEvent(cPterm_TB)
+                                    keyboardController?.hide() })
+                            )
+                            BasicTextField( // Integral Term INPUT
+                                value = cIterm_TB.userInput,
+                                onValueChange = { newText -> processTextFieldInput(newText,cIterm_TB) },
+                                cursorBrush = SolidColor(Cyan800),
+                                textStyle = TextStyle(color = color_3_3_BoxInputText, fontSize = 14.sp,textAlign = TextAlign.Center),
+                                modifier = Modifier.background(color_3_3_BoxInputBackground),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    processKeyboardDoneEvent(cIterm_TB)
+                                    keyboardController?.hide() })
+                            )
+                            BasicTextField( // Integral limit Term INPUT
+                                value = cIlimit_TB.userInput,
+                                onValueChange = { newText ->  processTextFieldInput(newText,cIlimit_TB) },
+                                cursorBrush = SolidColor(Cyan800),
+                                textStyle = TextStyle(color = color_3_3_BoxInputText, fontSize = 14.sp,textAlign = TextAlign.Center),
+                                modifier = Modifier.background(color_3_3_BoxInputBackground),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    processKeyboardDoneEvent(cIlimit_TB)
+                                    keyboardController?.hide() })
+                            )
+                            BasicTextField( // Integral Windup INPUT
+                                value = cIwindup_TB.userInput,
+                                onValueChange = { newText -> processTextFieldInput(newText,cIwindup_TB) },
+                                cursorBrush = SolidColor(Cyan800),
+                                textStyle = TextStyle(color = color_3_3_BoxInputText, fontSize = 14.sp,textAlign = TextAlign.Center),
+                                modifier = Modifier.background(color_3_3_BoxInputBackground),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    processKeyboardDoneEvent(cIwindup_TB)
+                                    keyboardController?.hide() })
+                            )
+                            BasicTextField( // Derivatve Term INPUT
+                                value = cDterm_TB.userInput,
+                                onValueChange = { newText -> processTextFieldInput(newText,cDterm_TB) },
+                                cursorBrush = SolidColor(Cyan800),
+                                textStyle = TextStyle(color = color_3_3_BoxInputText, fontSize = 14.sp,textAlign = TextAlign.Center),
+                                modifier = Modifier.background(color_3_3_BoxInputBackground),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    processKeyboardDoneEvent(cDterm_TB)
+                                    keyboardController?.hide() })
+                            )
+                            BasicTextField( // Low-pass Filter Frequency INPUT
+                                value = cLPFterm_TB.userInput,
+                                onValueChange = { newText -> processTextFieldInput(newText,cLPFterm_TB) },
+                                cursorBrush = SolidColor(Cyan800),
+                                textStyle = TextStyle(color = color_3_3_BoxInputText, fontSize = 14.sp,textAlign = TextAlign.Center),
+                                modifier = Modifier.background(color_3_3_BoxInputBackground).onFocusChanged { focusState ->
+                                    isFocused = focusState.isFocused
+                                    if (isFocused) { // The TextField is focused
+                                    } else {// The TextField lost focus
+                                        if ( cLPFterm_TB.userInput.text.toDouble() < cLPFterm_TB.minInValue)
+                                            cLPFterm_TB.userInput = TextFieldValue(cLPFterm_TB.minInValue.toString())
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    processKeyboardDoneEvent(cLPFterm_TB)
+                                    keyboardController?.hide() })
+                            )
+                            BasicTextField( // System Gain Term INPUT
+                                value = cGainterm_TB.userInput,
+                                onValueChange = { newText -> processTextFieldInput(newText,cGainterm_TB) },
+                                cursorBrush = SolidColor(Cyan800),
+                                textStyle = TextStyle(color = color_3_3_BoxInputText, fontSize = 14.sp,textAlign = TextAlign.Center),
+                                modifier = Modifier.background(color_3_3_BoxInputBackground),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    processKeyboardDoneEvent(cGainterm_TB)
+                                    keyboardController?.hide() })
+                            )
+                        }
+                        Column( // 4 COLUMN → Maximum--------------------------
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 2.dp),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) {
+                            Text(text = cPterm_TB.maxInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Proportional
+                            Text(text = cIterm_TB.maxInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral
+                            Text(text = cIlimit_TB.maxInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral Limit
+                            Text(text = cIwindup_TB.maxInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral Windup
+                            Text(text = cDterm_TB.maxInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Derivative
+                            Text(text = cLPFterm_TB.maxInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))  //LPF Freq. Cut
+                            Text(text = cGainterm_TB.maxInValue.toString(),style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))  //System Gain
+                        }
+                        Column( // 5 COLUMN → Units----------------------------
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 2.dp, start = 12.dp),
+                            //horizontalAlignment = Alignment. CenterHorizontally
+                        ) {
+                            Text(text = "",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Proportional
+                            Text(text = "",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral
+                            Text(text = "",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral Limit
+                            Text(text = "",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Integral Windup
+                            Text(text = "",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText)) //Derivative
+                            Text(text = "Hz",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))  //LPF Freq. Cut
+                            Text(text = "",style = TextStyle(fontSize = 13.sp, color = color_3_3_BoxText))  //System Gain
+                        }
+                    }
+                    //  Buttons To Read and save Value  --------------------------------------------
+                    Row(
+                        modifier = Modifier
+                            .padding(start = 10.dp, top = 2.dp)
+                            .size(width = 380.dp, height = 50.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly ,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column( // 1 COLUMN → Button To Read --------------------------
+                            modifier = Modifier
+                                .weight(2f)
+                                .padding(top = 0.dp),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) {}
+                        Column( // 1 COLUMN → Button To Read --------------------------
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 0.dp),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) {
+                            Button(onClick = {
+                                /* Handle button click → read PID Configuration */
+                                viewModel.rxReadPIDConfiguration()
+                                keyboardController?.hide()      // Hide the keyboard when the button is clicked
+                                Toast.makeText(context,"Reading PID configuration\"",Toast.LENGTH_SHORT).show()
+                                //Log.d("ScreenBREWconfiguration","Printing in screen: ${viewModel.brewConfigData.PreInfussionPwr}")
+                                runBlocking{
+                                    coroutineScope {  // this: CoroutineScope
+                                        launch {
+                                            delay(500L)
+                                            Log.d("ScreenPIDconfiguration","Read PID configuration")
+                                            cPterm_TB.userInput = TextFieldValue(viewModel.PIDConfigData.cfgPterm.toString())
+                                            cPterm_TB.clickedOnce = false
+                                            cIterm_TB.userInput = TextFieldValue(viewModel.PIDConfigData.cfgIterm.toString())
+                                            cIterm_TB.clickedOnce = false
+                                            cIlimit_TB.userInput = TextFieldValue(viewModel.PIDConfigData.cfgImaxterm.toString())
+                                            cIlimit_TB.clickedOnce = false
+                                            cIwindup_TB.userInput = TextFieldValue(viewModel.PIDConfigData.cfgWindup.toString())
+                                            cIwindup_TB.clickedOnce = false
+                                            cDterm_TB.userInput = TextFieldValue(viewModel.PIDConfigData.cfgDterm.toString())
+                                            cDterm_TB.clickedOnce = false
+                                            cLPFterm_TB.userInput = TextFieldValue(viewModel.PIDConfigData.cfgDlpfterm.toString())
+                                            cLPFterm_TB.clickedOnce = false
+                                            cGainterm_TB.userInput = TextFieldValue(viewModel.PIDConfigData.cfgGainterm.toString())
+                                            cGainterm_TB.clickedOnce = false
+                                        }
+                                    }
+                                }
+                            },
+                                colors = ButtonDefaults.buttonColors(backgroundColor = colorButtonBox),
+                                modifier = Modifier
+                                    .padding(start = 0.dp, top = 0.dp)
+                                    .fillMaxWidth(1f)
+                                    .height(35.dp)
+                                    .wrapContentHeight()
+                            ) { Text(text = "Read", style = TextStyle(fontSize = 13.sp, color = colorButtonText))
+                            }
+                        }
+                        Column( // 2 COLUMN → Button to Write --------------------------
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(top = 2.dp),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) {
+                            Button(
+                                onClick = {},
+                                colors = ButtonDefaults.buttonColors(backgroundColor = colorButtonBox),
+                                modifier = Modifier
+                                    .padding(start = 10.dp, top = 0.dp)
+                                    .fillMaxWidth(0.9f)
+                                    .height(35.dp)
+                                    .wrapContentHeight()
+                            ) {
+                                Text(text = "Write", style = TextStyle(fontSize = 13.sp, color = colorButtonText),
+                                    modifier = Modifier.pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = {Toast.makeText(context,"click",Toast.LENGTH_SHORT).show()},
+                                            onDoubleTap = {
+                                                /* Handle button click → WRITE Brew Configuration */
+                                                keyboardController?.hide()      // Hide the keyboard when the button is clicked
+                                                if(!(cPterm_TB.userInput.text.isNullOrBlank() && cIterm_TB.userInput.text.isNullOrBlank()
+                                                            && cIlimit_TB.userInput.text.isNullOrBlank()  && cIwindup_TB.userInput.text.isNullOrBlank()
+                                                            && cDterm_TB.userInput.text.isNullOrBlank()  && cLPFterm_TB.userInput.text.isNullOrBlank()
+                                                            && cGainterm_TB.userInput.text.isNullOrBlank() ))
+                                                {
+                                                    viewModel.txNewPIDConfigData.cfgPterm = cPterm_TB.userInput.text.toFloat()
+                                                    viewModel.txNewPIDConfigData.cfgIterm = cIterm_TB.userInput.text.toFloat()
+                                                    viewModel.txNewPIDConfigData.cfgImaxterm =  cIlimit_TB.userInput.text.toFloat()
+                                                    viewModel.txNewPIDConfigData.cfgWindup = cIwindup_TB.userInput.text.toFloat()
+                                                    viewModel.txNewPIDConfigData.cfgDterm = cDterm_TB.userInput.text.toFloat()
+                                                    viewModel.txNewPIDConfigData.cfgDlpfterm = cLPFterm_TB.userInput.text.toFloat()
+                                                    viewModel.txNewPIDConfigData.cfgGainterm = cGainterm_TB.userInput.text.toFloat()
+
+                                                    cPterm_TB.clickedOnce = false
+                                                    cIterm_TB.clickedOnce = false
+                                                    cIlimit_TB.clickedOnce = false
+                                                    cIwindup_TB.clickedOnce = false
+                                                    cDterm_TB.clickedOnce = false
+                                                    cLPFterm_TB.clickedOnce = false
+                                                    cGainterm_TB.clickedOnce = false
+                                                    Log.d("RemoteControlScreen", "SAVED: \n"+
+                                                            "P Term:${viewModel.txNewPIDConfigData.cfgPterm}\n" +
+                                                            "I Term:${viewModel.txNewPIDConfigData.cfgIterm}\n" +
+                                                            "Imax Term:${viewModel.txNewPIDConfigData.cfgImaxterm}\n" +
+                                                            "I windup:${viewModel.txNewPIDConfigData.cfgWindup}\n" +
+                                                            "D Term:${viewModel.txNewPIDConfigData.cfgDterm}\n" +
+                                                            "D LPF:${viewModel.txNewPIDConfigData.cfgDlpfterm}\n"+
+                                                            "PID gain:${viewModel.txNewPIDConfigData.cfgGainterm}\n")
+                                                    viewModel.txNewPIDConfiguration()
+                                                    Toast.makeText(context,"Sending new PID configuration",Toast.LENGTH_LONG).show()
+                                                }else{
+                                                    //Toast.makeText(context,"Provide a new temperature",Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        )
+                                    }
+                                )
+                            }
+
+                        }
+                    }
+
+                }
+            }
