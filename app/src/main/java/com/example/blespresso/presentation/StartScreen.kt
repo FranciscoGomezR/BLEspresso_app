@@ -11,31 +11,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.blespresso.ui.theme.orange
-import com.example.blespresso.ui.theme.darkGray
 import androidx.navigation.NavController
-import com.example.blespresso.ui.theme.Cyan800
-import com.example.blespresso.ui.theme.Teal200
+import com.example.blespresso.ui.theme.accent_indic
+import com.example.blespresso.ui.theme.background_indic
+import com.example.blespresso.ui.theme.textprimary_indic
 
 @Composable
 fun StartScreen(navController: NavController){
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(darkGray),
+            .background(background_indic),
         contentAlignment = Alignment.Center
     ){
         Box(
             modifier = Modifier
                 .size(200.dp)
                 .clip(CircleShape)
-                .background(Cyan800, CircleShape)
+                .background(accent_indic, CircleShape)
                 .clickable {
                     //Navigate
                     navController.navigate(Screen.BlespressoMainScreen.route) {
@@ -50,7 +47,7 @@ fun StartScreen(navController: NavController){
                 text = "CONNECT \nTO ESPRESSO \nMACHINE",
                 modifier = Modifier,
                     //.rotate(-90f),
-                color = Color.White,
+                color = textprimary_indic,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,

@@ -2,10 +2,8 @@ package com.example.blespresso.presentation
 
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,13 +20,8 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.blespresso.ui.theme.Cyan800
-import com.example.blespresso.ui.theme.darkGray
-import com.example.blespresso.ui.theme.gray
-import com.example.blespresso.ui.theme.white
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -42,6 +35,8 @@ fun BoilerTemperatureProgressIndicator(
     boilerTargetTemp:Float,
     primaryColor: Color,
     secondaryColor:Color,
+    primaryTextColor: Color,
+    secondaryTextColor:Color,
     minValue:Int = 0,
     maxValue:Int = 150,
     circleRadius:Float,
@@ -86,8 +81,8 @@ fun BoilerTemperatureProgressIndicator(
             drawCircle(
                 brush = Brush.radialGradient(
                     listOf(
-                        primaryColor.copy(0.8f),
-                        secondaryColor.copy(0.1f)
+                        primaryColor.copy(0.85f),
+                        secondaryColor.copy(0.25f)
                     )
                 ),
                 radius = circleRadius,
@@ -193,7 +188,7 @@ fun BoilerTemperatureProgressIndicator(
                         Paint().apply {
                             textSize = 46.sp.toPx()
                             textAlign = Paint.Align.CENTER
-                            color = white.toArgb()
+                            color = primaryTextColor.toArgb()
                             isFakeBoldText = true
                         }
                     )
@@ -204,7 +199,7 @@ fun BoilerTemperatureProgressIndicator(
                         Paint().apply {
                             textSize = 16.sp.toPx()
                             textAlign = Paint.Align.CENTER
-                            color = white.toArgb()
+                            color = primaryTextColor.toArgb()
                             isFakeBoldText = true
                         }
                     )
@@ -214,7 +209,7 @@ fun BoilerTemperatureProgressIndicator(
                         circleCenter.x-(circleRadius*.65f),
                         circleCenter.y+(circleRadius*.1f),
                         Paint().apply{
-                            color = white.toArgb()
+                            color = primaryTextColor.toArgb()
                             strokeWidth = 8f
                         }
 
@@ -226,7 +221,7 @@ fun BoilerTemperatureProgressIndicator(
                         Paint().apply {
                             textSize = 8.sp.toPx()
                             textAlign = Paint.Align.CENTER
-                            color = white.toArgb()
+                            color = secondaryTextColor.toArgb()
                             isFakeBoldText = true
                         }
                     )
@@ -237,7 +232,7 @@ fun BoilerTemperatureProgressIndicator(
                         Paint().apply {
                             textSize = 8.sp.toPx()
                             textAlign = Paint.Align.CENTER
-                            color = white.toArgb()
+                            color = secondaryTextColor.toArgb()
                             isFakeBoldText = true
                         }
                     )
@@ -248,7 +243,7 @@ fun BoilerTemperatureProgressIndicator(
                         Paint().apply {
                             textSize = 8.sp.toPx()
                             textAlign = Paint.Align.CENTER
-                            color = white.toArgb()
+                            color = secondaryTextColor.toArgb()
                             isFakeBoldText = true
                         }
                     )
@@ -261,6 +256,7 @@ fun BoilerTemperatureProgressIndicator(
 }
 //Video1 - TimeStamp: 5:15
 //this show the canvas in  split window
+/*
 @Preview(showBackground = true)
 @Composable
 fun Preview() {
@@ -275,13 +271,4 @@ fun Preview() {
         circleRadius = 330f,
     )
 }
-
-
-
-
-
-
-
-
-
-
+*/

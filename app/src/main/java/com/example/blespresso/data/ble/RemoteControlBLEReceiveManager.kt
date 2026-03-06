@@ -176,6 +176,15 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                     gatt.discoverServices()
                     //now the main instance (line 59) is equal the just discovered GATT
                     this@RemoteControlBLEReceiveManager.gatt = gatt
+
+                    // Emit something that your UI uses to navigate (even a dummy BoilerDataResult)
+                    //--------------------------------------------------------------------------------------------------
+                    /*
+                    coroutineScope.launch {
+                        data.emit(Resource.Success(BoilerDataResult(0f, ConnectionState.Connected)))
+                    }
+                     */
+                    //--------------------------------------------------------------------------------------------------
                 }//also check if The profile is in disconnected state
                 else if (newState == BluetoothProfile.STATE_DISCONNECTED)
                 {

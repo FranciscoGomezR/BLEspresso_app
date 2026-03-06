@@ -11,6 +11,8 @@ class CTextBox {
     var hasFocus by  mutableStateOf(false)// Flag to track if focus
     var maxInValue: Float = 0.0f
     var minInValue: Float = 0.0f
+    var originalValue: String = "0.0" // Store original value from BLE read
+    var modified by mutableStateOf(false) // Flag to track if value was actually modified
 }
 
 class C_BrewConfigData {

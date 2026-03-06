@@ -45,6 +45,8 @@ class  RemoteControlViewModel @Inject constructor(
 
     var connectionState by mutableStateOf<ConnectionState>(ConnectionState.Uninitialized)
 
+    var hasAutoLoadedBrewConfig by mutableStateOf(false)
+
     // video 1-> Time-Stamp: 1:08:30
     private fun subscribeToChanges() {
         viewModelScope.launch {

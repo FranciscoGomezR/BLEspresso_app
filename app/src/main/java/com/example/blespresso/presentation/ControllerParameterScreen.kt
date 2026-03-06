@@ -47,22 +47,16 @@ import androidx.navigation.NavController
 import com.example.blespresso.presentation.permissions.SystemBroadcastReceiver
 import com.example.blespresso.ui.theme.ButtonType1_Font
 import com.example.blespresso.ui.theme.ButtonType2_Font
-import com.example.blespresso.ui.theme.Cyan800
 import com.example.blespresso.ui.theme.MinMaxParam_fontsize
 import com.example.blespresso.ui.theme.ParamValue_fontsize
 import com.example.blespresso.ui.theme.TParameter_fontsize
 import com.example.blespresso.ui.theme.TableParam_fontsize
 import com.example.blespresso.ui.theme.TableTitle_fontsize
-import com.example.blespresso.ui.theme.colorButtonBox
-import com.example.blespresso.ui.theme.colorButtonCtrlText
-import com.example.blespresso.ui.theme.colorButtonText
-import com.example.blespresso.ui.theme.color_1_3_BoxBackground
-import com.example.blespresso.ui.theme.color_3_3_BoxBackground
-import com.example.blespresso.ui.theme.color_3_3_BoxInputBackground
-import com.example.blespresso.ui.theme.color_3_3_BoxInputText
-import com.example.blespresso.ui.theme.color_3_3_BoxText
-import com.example.blespresso.ui.theme.color_3_3_BoxTitleDivider
-import com.example.blespresso.ui.theme.color_3_3_BoxTitleText
+import com.example.blespresso.ui.theme.accent
+import com.example.blespresso.ui.theme.background
+import com.example.blespresso.ui.theme.surface
+import com.example.blespresso.ui.theme.textprimary
+import com.example.blespresso.ui.theme.textsecondary
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import kotlinx.coroutines.delay
 
@@ -164,7 +158,7 @@ fun BlespressoCtrlParamScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(color_1_3_BoxBackground)
+            .background(background)
 
     ) {
         Row(
@@ -176,7 +170,7 @@ fun BlespressoCtrlParamScreen(
                     .weight(1f)
                     .fillMaxWidth()
                     .fillMaxHeight()
-                    .background(color_3_3_BoxBackground)
+                    .background(background)
                     .padding(top = 1.dp, bottom = 1.dp) // Add spacing between rows
             ) { // Content for the third row
                 Column(
@@ -195,7 +189,7 @@ fun BlespressoCtrlParamScreen(
                                 .size(width = 380.dp, height = 30.dp),
                             style = TextStyle(
                                 fontSize = TableTitle_fontsize,
-                                color = color_3_3_BoxTitleText
+                                color = textprimary
                             )
                         )
                     }
@@ -215,7 +209,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Parameter",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 )
                             )
                         }
@@ -227,7 +221,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Min.",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 )
                             )
                         }
@@ -239,7 +233,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Value",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 )
                             )
                         }
@@ -251,7 +245,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Max.",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 )
                             )
                         }
@@ -263,13 +257,13 @@ fun BlespressoCtrlParamScreen(
                                 text = "Unit",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 )
                             )
                         }
                     }
                     Divider( //  TITLE DIVIDER   ---------------------------------------------------
-                        color = color_3_3_BoxTitleDivider,
+                        color = textprimary,
                         modifier = Modifier.padding(start = 10.dp)
                             .size(width = 380.dp, height = 1.dp)
                     )
@@ -290,7 +284,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Proportional",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -299,7 +293,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Integral",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -308,7 +302,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Integral Limit",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -317,7 +311,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Integral Windup",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -326,7 +320,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Derivative",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -335,7 +329,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "LPF Freq. Cut",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -344,7 +338,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "System Gain",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
-                                    color = color_3_3_BoxTitleText
+                                    color = textprimary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -358,7 +352,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cPterm_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -367,7 +361,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cIterm_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -376,7 +370,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cIlimit_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -385,7 +379,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cIwindup_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -394,7 +388,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cDterm_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -403,7 +397,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cLPFterm_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -412,7 +406,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cGainterm_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -427,14 +421,14 @@ fun BlespressoCtrlParamScreen(
                                 onValueChange = { newText ->
                                     processTextFieldInput(newText, cPterm_TB)
                                 },
-                                cursorBrush = SolidColor(Cyan800),
+                                cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = color_3_3_BoxInputText,
+                                    color = textprimary,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(color_3_3_BoxInputBackground)
+                                    .background(surface)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -453,14 +447,14 @@ fun BlespressoCtrlParamScreen(
                                         cIterm_TB
                                     )
                                 },
-                                cursorBrush = SolidColor(Cyan800),
+                                cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = color_3_3_BoxInputText,
+                                    color = textprimary,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(color_3_3_BoxInputBackground)
+                                    .background(surface)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -479,14 +473,14 @@ fun BlespressoCtrlParamScreen(
                                         cIlimit_TB
                                     )
                                 },
-                                cursorBrush = SolidColor(Cyan800),
+                                cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = color_3_3_BoxInputText,
+                                    color = textprimary,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(color_3_3_BoxInputBackground)
+                                    .background(surface)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -505,14 +499,14 @@ fun BlespressoCtrlParamScreen(
                                         cIwindup_TB
                                     )
                                 },
-                                cursorBrush = SolidColor(Cyan800),
+                                cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = color_3_3_BoxInputText,
+                                    color = textprimary,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(color_3_3_BoxInputBackground)
+                                    .background(surface)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -531,14 +525,14 @@ fun BlespressoCtrlParamScreen(
                                         cDterm_TB
                                     )
                                 },
-                                cursorBrush = SolidColor(Cyan800),
+                                cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = color_3_3_BoxInputText,
+                                    color = textprimary,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(color_3_3_BoxInputBackground)
+                                    .background(surface)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -557,14 +551,14 @@ fun BlespressoCtrlParamScreen(
                                         cLPFterm_TB
                                     )
                                 },
-                                cursorBrush = SolidColor(Cyan800),
+                                cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = color_3_3_BoxInputText,
+                                    color = textprimary,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(color_3_3_BoxInputBackground)
+                                    .background(surface)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
                                     .onFocusChanged { focusState ->
                                         isFocused = focusState.isFocused
@@ -592,14 +586,14 @@ fun BlespressoCtrlParamScreen(
                                         cGainterm_TB
                                     )
                                 },
-                                cursorBrush = SolidColor(Cyan800),
+                                cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = color_3_3_BoxInputText,
+                                    color = textprimary,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(color_3_3_BoxInputBackground)
+                                    .background(surface)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -621,7 +615,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cPterm_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -630,7 +624,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cIterm_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -639,7 +633,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cIlimit_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -648,7 +642,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cIwindup_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -657,7 +651,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cDterm_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -666,7 +660,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cLPFterm_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -675,7 +669,7 @@ fun BlespressoCtrlParamScreen(
                                 text = cGainterm_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -691,7 +685,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -700,7 +694,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -709,7 +703,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -718,7 +712,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -727,7 +721,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -736,7 +730,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "Hz",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -745,7 +739,7 @@ fun BlespressoCtrlParamScreen(
                                 text = "",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
-                                    color = color_3_3_BoxText
+                                    color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
@@ -787,7 +781,7 @@ fun BlespressoCtrlParamScreen(
                                     passRxvalfromBLEtoVar = true
 
                                 },
-                                colors = ButtonDefaults.buttonColors(backgroundColor = colorButtonBox),
+                                colors = ButtonDefaults.buttonColors(backgroundColor = accent),
                                 modifier = Modifier
                                     .fillMaxWidth(1f)
                                     .height(40.dp)
@@ -797,7 +791,7 @@ fun BlespressoCtrlParamScreen(
                                     text = "Read",
                                     style = TextStyle(
                                         fontSize = ButtonType2_Font,
-                                        color = colorButtonText
+                                        color = textprimary
                                     )
                                 )
                             }
@@ -810,7 +804,7 @@ fun BlespressoCtrlParamScreen(
                         ) {
                             Button(
                                 onClick = {},
-                                colors = ButtonDefaults.buttonColors(backgroundColor = colorButtonBox),
+                                colors = ButtonDefaults.buttonColors(backgroundColor = accent),
                                 modifier = Modifier
                                     .padding(start = 0.dp, top = 0.dp)
                                     .fillMaxWidth(1f)
@@ -820,7 +814,7 @@ fun BlespressoCtrlParamScreen(
                                 Text(text = "Write",
                                     style = TextStyle(
                                         fontSize = ButtonType2_Font,
-                                        color = colorButtonText
+                                        color = textprimary
                                     ),
                                     modifier = Modifier.pointerInput(Unit) {
                                         detectTapGestures(
@@ -917,7 +911,7 @@ fun BlespressoCtrlParamScreen(
                                     }
                                     //TODO("Enter Controller parameter window using navController")
                                 },
-                                colors = ButtonDefaults.buttonColors(backgroundColor = colorButtonBox),
+                                colors = ButtonDefaults.buttonColors(backgroundColor = accent),
                                 modifier = Modifier
                                     .padding(start = 0.dp, top = 0.dp)
                                     .fillMaxWidth(1f)
@@ -928,7 +922,7 @@ fun BlespressoCtrlParamScreen(
                                     text = "Main",
                                     style = TextStyle(
                                         fontSize = ButtonType1_Font,
-                                        color = colorButtonCtrlText
+                                        color = textprimary
                                     )
                                 )
                             }
