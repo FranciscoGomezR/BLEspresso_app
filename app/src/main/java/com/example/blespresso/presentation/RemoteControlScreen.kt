@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
@@ -446,7 +447,7 @@ fun RemoteControlScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Boiler Configuration",
+                                text = "Machine Configuration",
                                 modifier = Modifier.padding(start = 10.dp),
                                 style = TextStyle(
                                     fontSize = 17.sp,
@@ -463,19 +464,32 @@ fun RemoteControlScreen(
                         Row(
                             modifier = Modifier
                                 .padding(start = 10.dp)
-                                .size(width = 380.dp, height = 40.dp),
+                                .size(width = 380.dp, height = 60.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
+                            //A  Row containing column has a span/weight of 8f
                             Column( // 1 COLUMN → Target Temperature text------------------------
-                                modifier = Modifier.weight(4f).padding(start = 15.dp, top = 2.dp)
+                                modifier = Modifier.weight(3f).padding(start = 15.dp, top = 2.dp)
                             ) {
-                                Text(
-                                    text = "Target Temperature:",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary), modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically)
+                                Text( text = "Brew Temperature:",
+                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
+                                )
+                                Text( text = "Steam Temperature:",
+                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
                                 )
                             }
-                            Column( // 2 COLUMN → Target Value--------------------------
+                            Column( // 2 COLUMN → Target Temperature text------------------------
+                                modifier = Modifier.weight(2f).padding(start = 15.dp, top = 2.dp)
+                            ) {
+                                Text( text = "(0 - 100°C)",
+                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary, fontStyle = FontStyle.Italic), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
+                                )
+                                Text( text = "(100 - 140°C)",
+                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary, fontStyle = FontStyle.Italic), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
+                                )
+                            }
+                            Column( // 3 COLUMN → 2f Target Value--------------------------
                                 modifier = Modifier.weight(2f).padding(top = 2.dp),
                                 horizontalAlignment = Alignment. CenterHorizontally
                             ) {
@@ -492,105 +506,33 @@ fun RemoteControlScreen(
                                         processKeyboardDoneEvent(cBoilerTB)
                                         keyboardController?.hide() })
                                 )
+                                BasicTextField(
+                                    value = cBoilerTB.userInput,
+                                    onValueChange = { newText ->
+                                        processTextFieldInput(newText, cBoilerTB) },
+                                    cursorBrush = SolidColor(Unspecified),
+                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically)
+                                        .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(onDone = {
+                                        processKeyboardDoneEvent(cBoilerTB)
+                                        keyboardController?.hide() })
+                                )
                             }
-                            Column( // 3 COLUMN → Units--------------------------
+                            Column( // 4 COLUMN → 1f Units--------------------------
                                 modifier = Modifier.weight(1f).padding(top = 2.dp),
                                 horizontalAlignment = Alignment. CenterHorizontally
                             ) {
-                                Text(
-                                    text = "°C",
+                                Text(text = "°C",
+                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                Text(text = "°C",
                                     style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically))
                             }
-                            Column( // 5 COLUMN → Space----------------------------
-                                modifier = Modifier.weight(1f).padding(top = 2.dp, start = 12.dp),
-                                //horizontalAlignment = Alignment. CenterHorizontally
-                            ) {
-                                /*space*/
-                            }
-                        }
-                        Row(
-                            modifier = Modifier
-                                .padding(start = 0.dp, top = 5.dp)
-                                .size(width = 380.dp, height = 50.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly ,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column( // 1 COLUMN allocates →  1/3 space of the column --------------------------
-                                modifier = Modifier
-                                    .weight(0.4f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment. CenterHorizontally
-                            ) {}
-                            Column( // 2 COLUMN allocates →  1/3 space of the column --------------------------
-                                modifier = Modifier
-                                    .weight(0.3f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment. CenterHorizontally
-                            ) {
-                                Button(
-                                    onClick = {
-                                        Toast.makeText(context, "Reading Set temperature", Toast.LENGTH_SHORT).show()
-                                        viewModel.rxNewBoilerTargetTemp()
-                                        passTempValModeltoVar = true
-                                    },
-                                    colors = ButtonDefaults.buttonColors(backgroundColor = accent),
-                                    modifier = Modifier
-                                        .fillMaxWidth(1f)
-                                        .height(40.dp)
-                                        .wrapContentHeight()
-                                ) {
-                                    Text(text = "Read",
-                                        style = TextStyle(fontSize = tokens.ButtonType2_Font, color = textprimary),
-                                    )
-                                }
-                            }
-                            Column( // 3 COLUMN allocates →  1/3 space of the column --------------------------
-                                modifier = Modifier
-                                    .weight(0.3f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment. CenterHorizontally
-                            ) {
-                                Button(
-                                    onClick = {
-                                        keyboardController?.hide()      // Hide the keyboard when the button is clicked
-                                        if (!(cBoilerTB.userInput.text == "New" || cBoilerTB.userInput.text == "")) {
-                                            newTargetTemperature =
-                                                cBoilerTB.userInput.text.toFloat()
-                                            cBoilerTB.clickedOnce = false
-                                            Log.d("RemoteControlScreen", "SAVED: $newTargetTemperature C")
-                                            viewModel.boilerSetpointTemp = newTargetTemperature
-                                            viewModel.txNewBoilerTargetTemp()
-                                            Toast.makeText(context, "Sending new temperature", Toast.LENGTH_LONG).show()
-                                        } else {
-                                            Toast.makeText(context, "Provide a new temperature", Toast.LENGTH_SHORT).show()
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(backgroundColor = accent),
-                                    modifier = Modifier
-                                        .fillMaxWidth(1f)
-                                        .height(40.dp)
-                                        .wrapContentHeight()
-                                ) {
-                                    Text(text = "Write",
-                                        style = TextStyle(fontSize = tokens.ButtonType2_Font, color = textprimary),
-                                    )
-                                }
-                            }
+
                         }
                         //  BREW CONFIGURATION MENU
                         //  ----------------------------------------------------------------------------
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                text = "Brew Configuration",
-                                modifier = Modifier.padding(start = 10.dp, top = 2.dp),
-                                style = TextStyle(
-                                    fontSize = 17.sp,
-                                    color = textprimary
-                                )
-                            )
-                        }
                         //  TABLE PARAMETER TITLE   ----------------------------------------------------
                         Row(
                             modifier = Modifier
@@ -598,33 +540,12 @@ fun RemoteControlScreen(
                                 .size(width = 380.dp, height = 18.dp),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column( // 1 COLUMN → Parameters------------------------
-                                modifier = Modifier.weight(3f),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) { Text(text = "") }
-                            Column( // 2 COLUMN → Minimum--------------------------
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(text = "Min.", style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary)) }
-                            Column( // 3 COLUMN → Input----------------------------
-                                modifier = Modifier.weight(2f),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {Text(text = "Value",style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary)) }
-                            Column( // 4 COLUMN → Maximum--------------------------
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {Text(text = "Max.",style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary)) }
-                            Column( // 5 COLUMN → Units----------------------------
-                                modifier = Modifier.weight(1f),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) { Text(text = "Unit",style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary)) }
-                        }
+                        ) {}
+                        /*
                         Divider( //  TITLE DIVIDER   ---------------------------------------------------
                             color = textsecondary,
                             modifier = Modifier.padding(start = 10.dp).size(width = 380.dp, height = 1.dp)
-                        )
+                        )*/
                         //  Brew Table Content  --------------------------------------------------------
                         Row( //thiw row configure the size of the space allocated for the Bre table
                             modifier = Modifier
@@ -638,45 +559,45 @@ fun RemoteControlScreen(
                             ) {
                                 Text(
                                     text = "Pre-Infusion",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "Infusion",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "Declining Pressure",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                             }
-                            Column( // 2 COLUMN → Minimum--------------------------
-                                modifier = Modifier.weight(1f).padding(top = 2.dp),
+                            Column( // 2 COLUMN → Input Range--------------------------
+                                modifier = Modifier.weight(2f).padding(top = 2.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = cPreinfusionPWR_TB.minInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    text = "(" + cPreinfusionPWR_TB.minInValue.toString() + " - " + cPreinfusionPWR_TB.maxInValue.toString() + ")",
+                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
-                                    text = cPreinfusionTMR_TB.minInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    text = "(" + cPreinfusionTMR_TB.minInValue.toString() + " - " + cPreinfusionTMR_TB.maxInValue.toString() + ")",
+                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
-                                    text = cInfusionPWR_TB.minInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    text = "(" + cInfusionPWR_TB.minInValue.toString() + " - " + cInfusionPWR_TB.maxInValue.toString() + ")",
+                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
-                                    text = cInfusionTMR_TB.minInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    text = "(" + cInfusionTMR_TB.minInValue.toString() + " - " + cInfusionTMR_TB.maxInValue.toString() + ")",
+                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
-                                    text = cDeclinPrPWR_TB.minInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    text = "(" + cDeclinPrPWR_TB.minInValue.toString() + " - " + cDeclinPrPWR_TB.maxInValue.toString() + ")",
+                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
-                                    text = cDeclinPrTMR_TB.minInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    text = "(" + cDeclinPrTMR_TB.minInValue.toString() + " - " + cDeclinPrTMR_TB.maxInValue.toString() + ")",
+                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                             }
                             Column( // 3 COLUMN → VALUE----------------------------
                                 modifier = Modifier.weight(2f).padding(top = 2.dp),
@@ -765,51 +686,27 @@ fun RemoteControlScreen(
                                     })
                                 )
                             }
-                            Column( // 4 COLUMN → Maximum--------------------------
-                                modifier = Modifier.weight(1f).padding(top = 2.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = cPreinfusionPWR_TB.maxInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = cPreinfusionTMR_TB.maxInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = cInfusionPWR_TB.maxInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = cInfusionTMR_TB.maxInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = cDeclinPrPWR_TB.maxInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = cDeclinPrTMR_TB.maxInValue.toString(),
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                            }
-                            Column(
-                                // 5 COLUMN → Units----------------------------
+                            Column(// 4 COLUMN → Units----------------------------
                                 modifier = Modifier.weight(1f).padding(top = 2.dp, start = 12.dp),
                             ) {
                                 Text(
                                     text = "%",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "sec",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "%",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "sec",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "%",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                                 Text(
                                     text = "sec",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                             }
                         }
                         //  ROW to allocate the following buttons:
@@ -836,13 +733,15 @@ fun RemoteControlScreen(
                             ) {
                                 Button(
                                     onClick = {
-                                        /* Handle button click → READ Brew Configuration */
-                                        viewModel.rxReadBrewConfiguration()
                                         keyboardController?.hide()      // Hide the keyboard when the button is clicked
-                                        Log.d("ScreenBREWconfiguration", "Read configuration Button PRESSED")
-                                        Toast.makeText(context, "Reading Brew configuration\"", Toast.LENGTH_SHORT).show()
-                                        //Log.d("ScreenBREWconfiguration","Printing in screen: ${viewModel.brewConfigData.PreInfussionPwr}")
+                                        /* Handle button click → READ Temperature and Brew Configuration */
+                                        Toast.makeText(context, "Reading Machine configuration", Toast.LENGTH_SHORT).show()
+                                        passTempValModeltoVar = true
                                         passRxvalfromBLEtoVar = true
+                                        //viewModel.rxNewBoilerTargetTemp()
+                                        //viewModel.rxReadBrewConfiguration()
+                                        Log.d("ScreenBREWconfiguration", "Read configuration Button PRESSED")
+                                        //Log.d("ScreenBREWconfiguration","Printing in screen: ${viewModel.brewConfigData.PreInfussionPwr}")
                                     },
                                     colors = ButtonDefaults.buttonColors(backgroundColor = accent),
                                     modifier = Modifier
@@ -883,9 +782,19 @@ fun RemoteControlScreen(
                                                 onDoubleTap = {
                                                     /* Handle button click → WRITE Brew Configuration */
                                                     keyboardController?.hide()      // Hide the keyboard when the button is clicked
+                                                    var anyModified = false
+                                                    // Handle temperature write
+                                                    if (cBoilerTB.modified && cBoilerTB.userInput.text.isNotBlank()) {
+                                                        newTargetTemperature = cBoilerTB.userInput.text.toFloat()
+                                                        //cBoilerTB.clickedOnce = false
+                                                        anyModified = true
+                                                        Log.d("RemoteControlScreen", "SAVED: $newTargetTemperature C")
+                                                        viewModel.boilerSetpointTemp = newTargetTemperature
+                                                        viewModel.txNewBoilerTargetTemp()
+                                                        //Toast.makeText(context, "Sending new temperature", Toast.LENGTH_LONG).show()
+                                                    }
 
                                                     // Check which fields have been modified
-                                                    var anyModified = false
                                                     if (cPreinfusionPWR_TB.modified && cPreinfusionPWR_TB.userInput.text.isNotBlank()) {
                                                         viewModel.txNewBrewConfigData.PreInfussionPwr = cPreinfusionPWR_TB.userInput.text.toFloat()
                                                         anyModified = true
@@ -913,6 +822,7 @@ fun RemoteControlScreen(
 
                                                     if (anyModified) {
                                                         // Reset modified flags
+                                                        cBoilerTB.modified = false
                                                         cPreinfusionPWR_TB.modified = false
                                                         cPreinfusionTMR_TB.modified = false
                                                         cInfusionPWR_TB.modified = false
@@ -922,6 +832,7 @@ fun RemoteControlScreen(
 
                                                         Log.d(
                                                             "RemoteControlScreen", "SAVED: \n" +
+                                                                    "Target Temperature:${viewModel.boilerSetpointTemp}\n" +
                                                                     "PreinfusionPWR:${viewModel.txNewBrewConfigData.PreInfussionPwr}\n" +
                                                                     "PreinfusionTMR:${viewModel.txNewBrewConfigData.PreInfussionTmr}\n" +
                                                                     "InfusionPWR:${viewModel.txNewBrewConfigData.InfussionPwr}\n" +
