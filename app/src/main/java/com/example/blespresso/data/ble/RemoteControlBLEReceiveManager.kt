@@ -709,6 +709,16 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         }
     }
 
+    override fun txNewSteamTempSetpoint(newTarget: Float) {
+        val txTempStringChar = StringBuilder()
+        dataConvertionFloatToCharacteristic(newTarget, txTempStringChar, 4)
+        var characteristicSteamTemp = findCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID)
+        if (characteristicSteamTemp != null) {
+            Log.d("BLE_txSteamTemp", "TxSteamTempToBLEspresso: $txTempStringChar")
+            writeCharacteristicsDevice(characteristicSteamTemp, (txTempStringChar.toString()).toByteArray())
+        }
+    }
+
     override fun txfcnWriteBrewConfiguration(newTxData: C_BrewConfigData)
     {
         var cfgDataCounter = 0

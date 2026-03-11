@@ -807,6 +807,15 @@ fun RemoteControlScreen(
                                                         //Toast.makeText(context, "Sending new temperature", Toast.LENGTH_LONG).show()
                                                     }
 
+                                                    // Handle steam temperature write
+                                                    if (cSteamTempTB.modified && cSteamTempTB.userInput.text.isNotBlank()) {
+                                                        val newSteamTemperature = cSteamTempTB.userInput.text.toFloat()
+                                                        anyModified = true
+                                                        Log.d("RemoteControlScreen", "SAVED: $newSteamTemperature C")
+                                                        viewModel.steamTempSetpoint = newSteamTemperature
+                                                        viewModel.txNewSteamTempSetpoint()
+                                                    }
+
                                                     // Check which fields have been modified
                                                     if (cPreinfusionPWR_TB.modified && cPreinfusionPWR_TB.userInput.text.isNotBlank()) {
                                                         viewModel.txNewBrewConfigData.PreInfussionPwr = cPreinfusionPWR_TB.userInput.text.toFloat()

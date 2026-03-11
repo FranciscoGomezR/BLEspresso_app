@@ -49,6 +49,8 @@ interface RemoteControlReceiveManager
     // read steam temperature setpoint from BLE
     fun rxReadSteamTempSetpoint()
 
+    fun txNewSteamTempSetpoint(newTarget: Float)
+
     fun txfcnWriteBrewConfiguration(newTxData: C_BrewConfigData)
     fun txfcnWritePIDConfiguration(newTxData: C_PIDConfigData)
 

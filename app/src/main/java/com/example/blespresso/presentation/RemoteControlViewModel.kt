@@ -304,6 +304,10 @@ class  RemoteControlViewModel @Inject constructor(
         remoteControlReceiveManager.txNewBoilerTargetTemp(boilerSetpointTemp)
     }
 
+    fun txNewSteamTempSetpoint() {
+        remoteControlReceiveManager.txNewSteamTempSetpoint(steamTempSetpoint)
+    }
+
     fun rxNewBoilerTargetTemp() {
         remoteControlReceiveManager.rxReadBoilerTargetTemp()
     }
