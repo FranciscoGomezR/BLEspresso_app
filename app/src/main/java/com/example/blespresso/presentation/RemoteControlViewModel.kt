@@ -31,6 +31,10 @@ class  RemoteControlViewModel @Inject constructor(
     var boilerSetpointTemp by mutableStateOf(0f)
         public set
 
+    // new value for steam temperature received from BLE
+    var steamTempSetpoint by mutableStateOf(0f)
+        public set
+
     var brewConfigData by mutableStateOf(C_BrewConfigData())
         public set
 
@@ -97,6 +101,18 @@ class  RemoteControlViewModel @Inject constructor(
                 }
             }
         }
+        // collect steam setpoint from BLE characteristic
+        viewModelScope.launch {
+            remoteControlReceiveManager.dataSteamSetpoint.collectLatest { result ->
+                when (result) {
+                    is Resource.Success -> {
+                        connectionState = result.data.connectionState
+                        steamTempSetpoint = result.data.targetTemperature
+                    }
+                }
+            }
+        }
+
         //ViewScope → Collect data from char: BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID
         viewModelScope.launch {
             remoteControlReceiveManager.dataBrewCfgPreInfusionPwr.collectLatest { result ->
@@ -290,6 +306,11 @@ class  RemoteControlViewModel @Inject constructor(
 
     fun rxNewBoilerTargetTemp() {
         remoteControlReceiveManager.rxReadBoilerTargetTemp()
+    }
+
+    // request updated steam setpoint from BLE device
+    fun rxReadSteamTempSetpoint() {
+        remoteControlReceiveManager.rxReadSteamTempSetpoint()
     }
 
     fun txNewBrewConfiguration() {

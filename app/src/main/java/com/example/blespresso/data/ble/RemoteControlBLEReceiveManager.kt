@@ -50,6 +50,10 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     private val SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID =
         "00001403-00b0-4240-ba50-05ca45bf8abc"
 
+    // new steam setpoint characteristic (ends in 140A)
+    private val STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID =
+        "0000140a-00b0-4240-ba50-05ca45bf8abc"
+
     private val BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID =     //Default value = 35.0%         → 3 digits
         "00001404-00b0-4240-ba50-05ca45bf8abc"
     private val BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID =     //Default value = 5.0 seconds   → 3 digits
@@ -98,6 +102,8 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     override val dataBrewCfg___InfusionTmr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataBrewCfgDeclining__Pwr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataBrewCfgDeclining__Tmr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
+    // flow for new steam setpoint value
+    override val dataSteamSetpoint: MutableSharedFlow<Resource<BoilerSetpoint>> = MutableSharedFlow()
 
     override val dataPIDcfgPterm:       MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataPIDcfgIterm:       MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
@@ -275,6 +281,24 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                             //data.emit(Resource.Success(data = targetTemp))
                         }
                         Log.d("BLEReceiverManagerRX", "Target TEMPERATURE: $rxtemperature")
+                    }
+                    UUID.fromString(STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID)->{
+                        characteristicToReadFLAG = false
+                        super.onCharacteristicRead(gatt, characteristic, status)
+                        rxString = characteristic?.getStringValue(0).toString()
+                        Log.d("BLEReceiverManager2", "I have read steam setpoint: $rxString")
+                        // parse same way as boiler setpoint
+                        var rxtemperature = (rxString[0].code - 48) * 100.0f
+                        rxtemperature += (rxString[1].code - 48) * 10.0f
+                        rxtemperature += (rxString[2].code - 48) * 1.0f
+                        rxtemperature += (rxString[3].code - 48) * 0.1f
+                        val steamTemp = BoilerSetpoint(
+                            rxtemperature,
+                            ConnectionState.Connected)
+                        coroutineScope.launch {
+                            dataSteamSetpoint.emit(Resource.Success(data = steamTemp))
+                        }
+                        Log.d("BLEReceiverManagerRX", "Steam TEMPERATURE: $rxtemperature")
                     }
                     //Catch BREW configuration data
                     UUID.fromString(BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID)-> {
@@ -673,6 +697,14 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         if (characteristictoRead != null)
         {
             Log.d("BLE_rxTargetTemp", "About to READ Target Temp")
+            readCharacteristicsDevice(characteristictoRead)
+        }
+    }
+
+    override fun rxReadSteamTempSetpoint() {
+        var characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID)
+        if (characteristictoRead != null) {
+            Log.d("BLE_rxSteamTemp", "About to READ Steam Setpoint")
             readCharacteristicsDevice(characteristictoRead)
         }
     }

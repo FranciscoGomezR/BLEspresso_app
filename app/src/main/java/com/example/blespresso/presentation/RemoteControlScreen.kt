@@ -142,6 +142,10 @@ fun RemoteControlScreen(
     cBoilerTB.maxInValue = 150.0f
     cBoilerTB.minInValue = 0.0f
 
+    val cSteamTempTB = remember { CTextBox() }
+    cSteamTempTB.maxInValue = 145.0f
+    cSteamTempTB.minInValue = 100.0f
+
     var cPreinfusionPWR_TB = remember { CTextBox() }
     cPreinfusionPWR_TB.maxInValue = 50.0f
     cPreinfusionPWR_TB.minInValue = 0.0f
@@ -246,6 +250,10 @@ fun RemoteControlScreen(
         delay(500L)
         cBoilerTB.userInput = TextFieldValue(viewModel.boilerSetpointTemp.toString())
         cBoilerTB.clickedOnce = false
+        
+        cSteamTempTB.userInput = TextFieldValue(viewModel.steamTempSetpoint.toString())
+        cSteamTempTB.clickedOnce = false
+        
         passTempValModeltoVar = false
     }
     var passRxvalfromBLEtoVar by remember { mutableStateOf(false) }
@@ -301,9 +309,12 @@ fun RemoteControlScreen(
             passRxvalfromBLEtoVar = true
             viewModel.hasAutoLoadedBrewConfig = true
             delay(500L)
-            // Also auto-load boiler temperature
+            // Also auto-load temperatures
             Log.d("ScreenNavigation", "Auto-loading boiler temperature on connection")
             viewModel.rxNewBoilerTargetTemp()
+            delay(100L)
+            // read new steam setpoint as well
+            viewModel.rxReadSteamTempSetpoint()
             passTempValModeltoVar = true
         } else if (bleConnectionState != ConnectionState.Connected) {
             viewModel.hasAutoLoadedBrewConfig = false // Reset for next connection
@@ -507,16 +518,16 @@ fun RemoteControlScreen(
                                         keyboardController?.hide() })
                                 )
                                 BasicTextField(
-                                    value = cBoilerTB.userInput,
+                                    value = cSteamTempTB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cBoilerTB) },
+                                        processTextFieldInput(newText, cSteamTempTB) },
                                     cursorBrush = SolidColor(Unspecified),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically)
                                         .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cBoilerTB)
+                                        processKeyboardDoneEvent(cSteamTempTB)
                                         keyboardController?.hide() })
                                 )
                             }
@@ -738,7 +749,9 @@ fun RemoteControlScreen(
                                         Toast.makeText(context, "Reading Machine configuration", Toast.LENGTH_SHORT).show()
                                         passTempValModeltoVar = true
                                         passRxvalfromBLEtoVar = true
-                                        //viewModel.rxNewBoilerTargetTemp()
+                                        // explicitly request fresh data from BLE
+                                        viewModel.rxNewBoilerTargetTemp()
+                                        viewModel.rxReadSteamTempSetpoint()
                                         //viewModel.rxReadBrewConfiguration()
                                         Log.d("ScreenBREWconfiguration", "Read configuration Button PRESSED")
                                         //Log.d("ScreenBREWconfiguration","Printing in screen: ${viewModel.brewConfigData.PreInfussionPwr}")

@@ -25,6 +25,9 @@ interface RemoteControlReceiveManager
     val dataBrewCfgDeclining__Pwr:MutableSharedFlow<Resource<CharDataClass>>
     val dataBrewCfgDeclining__Tmr:MutableSharedFlow<Resource<CharDataClass>>
 
+    // new characteristic for steam temperature setpoint
+    val dataSteamSetpoint: MutableSharedFlow<Resource<BoilerSetpoint>>
+
     val dataPIDcfgPterm:MutableSharedFlow<Resource<CharDataClass>>
     val dataPIDcfgIterm:MutableSharedFlow<Resource<CharDataClass>>
     val dataPIDcfgImaxterm:MutableSharedFlow<Resource<CharDataClass>>
@@ -42,6 +45,9 @@ interface RemoteControlReceiveManager
     fun txNewBoilerTargetTemp(newTarget: Float)
 
     fun rxReadBoilerTargetTemp()
+
+    // read steam temperature setpoint from BLE
+    fun rxReadSteamTempSetpoint()
 
     fun txfcnWriteBrewConfiguration(newTxData: C_BrewConfigData)
     fun txfcnWritePIDConfiguration(newTxData: C_PIDConfigData)
