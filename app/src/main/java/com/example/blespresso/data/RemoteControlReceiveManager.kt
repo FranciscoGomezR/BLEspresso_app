@@ -1,7 +1,5 @@
 package com.example.blespresso.data
 
-import com.example.blespresso.presentation.C_BrewConfigData
-import com.example.blespresso.presentation.C_PIDConfigData
 import com.example.blespresso.utilities.Resource
 import kotlinx.coroutines.flow.MutableSharedFlow
 // Tutorial 1 -> Youtube: https://www.youtube.com/watch?v=qyG-SDfYNBE&t=422s&ab_channel=KApps
@@ -42,20 +40,33 @@ interface RemoteControlReceiveManager
 
     fun startConnection()
 
-    fun txNewBoilerTargetTemp(newTarget: Float)
-
     fun rxReadBoilerTargetTemp()
-
     // read steam temperature setpoint from BLE
     fun rxReadSteamTempSetpoint()
 
+    // Individual MAchine characteristic writes
+    fun txNewBoilerTargetTemp(newTarget: Float)
     fun txNewSteamTempSetpoint(newTarget: Float)
+    fun txWritePreInfusionPwr(value: Float)
+    fun txWritePreInfusionTmr(value: Float)
+    fun txWriteInfusionPwr(value: Float)
+    fun txWriteInfusionTmr(value: Float)
+    fun txWriteDecliningPwr(value: Float)
+    fun txWriteDecliningTmr(value: Float)
 
-    fun txfcnWriteBrewConfiguration(newTxData: C_BrewConfigData)
-    fun txfcnWritePIDConfiguration(newTxData: C_PIDConfigData)
+    // Individual PID characteristic writes
+    fun txWritePidPTerm(value: Float)
+    fun txWritePidITerm(value: Float)
+    fun txWritePidIMax(value: Float)
+    fun txWritePidWindup(value: Float)
+    fun txWritePidDTerm(value: Float)
+    fun txWritePidDLpf(value: Float)
+    fun txWritePidGain(value: Float)
 
-    suspend fun rxReadBrewConfiguration()
     suspend fun rxReadPIDConfiguration()
+    // Reads all 8 machine UUIDs (boiler target temp + steam setpoint + 6 brew params) in a
+    // single GATT-safe sequential queue, replacing the three individual fire-and-forget calls.
+    suspend fun rxReadMachineConfiguration()
 
     fun startReceiving()
     fun closeConnection()

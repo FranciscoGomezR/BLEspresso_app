@@ -44,8 +44,6 @@ class  RemoteControlViewModel @Inject constructor(
     var pIDConfigData by mutableStateOf(C_PIDConfigData())
         public set
 
-    var txNewPIDConfigData by mutableStateOf(C_PIDConfigData())
-        public set
 
     var connectionState by mutableStateOf<ConnectionState>(ConnectionState.Uninitialized)
 
@@ -300,12 +298,14 @@ class  RemoteControlViewModel @Inject constructor(
         //remoteControlReceiveManager.sendCommandtoDrone(throttle,rollAngle,pitchAngle,false)
     }
 
-    fun txNewBoilerTargetTemp() {
-        remoteControlReceiveManager.txNewBoilerTargetTemp(boilerSetpointTemp)
+    fun txNewBoilerTargetTemp(value: Float) {
+        boilerSetpointTemp = value
+        remoteControlReceiveManager.txNewBoilerTargetTemp(value)
     }
 
-    fun txNewSteamTempSetpoint() {
-        remoteControlReceiveManager.txNewSteamTempSetpoint(steamTempSetpoint)
+    fun txNewSteamTempSetpoint(value: Float) {
+        steamTempSetpoint = value
+        remoteControlReceiveManager.txNewSteamTempSetpoint(value)
     }
 
     fun rxNewBoilerTargetTemp() {
@@ -317,16 +317,24 @@ class  RemoteControlViewModel @Inject constructor(
         remoteControlReceiveManager.rxReadSteamTempSetpoint()
     }
 
-    fun txNewBrewConfiguration() {
-        remoteControlReceiveManager.txfcnWriteBrewConfiguration(txNewBrewConfigData)
-    }
-    fun txNewPIDConfiguration() {
-        remoteControlReceiveManager.txfcnWritePIDConfiguration(txNewPIDConfigData)
-    }
+    fun txWritePreInfusionPwr(value: Float) = remoteControlReceiveManager.txWritePreInfusionPwr(value)
+    fun txWritePreInfusionTmr(value: Float) = remoteControlReceiveManager.txWritePreInfusionTmr(value)
+    fun txWriteInfusionPwr(value: Float)    = remoteControlReceiveManager.txWriteInfusionPwr(value)
+    fun txWriteInfusionTmr(value: Float)    = remoteControlReceiveManager.txWriteInfusionTmr(value)
+    fun txWriteDecliningPwr(value: Float)   = remoteControlReceiveManager.txWriteDecliningPwr(value)
+    fun txWriteDecliningTmr(value: Float)   = remoteControlReceiveManager.txWriteDecliningTmr(value)
 
-    fun rxReadBrewConfiguration() {
+    fun txWritePidPTerm(value: Float)  = remoteControlReceiveManager.txWritePidPTerm(value)
+    fun txWritePidITerm(value: Float)  = remoteControlReceiveManager.txWritePidITerm(value)
+    fun txWritePidIMax(value: Float)   = remoteControlReceiveManager.txWritePidIMax(value)
+    fun txWritePidWindup(value: Float) = remoteControlReceiveManager.txWritePidWindup(value)
+    fun txWritePidDTerm(value: Float)  = remoteControlReceiveManager.txWritePidDTerm(value)
+    fun txWritePidDLpf(value: Float)   = remoteControlReceiveManager.txWritePidDLpf(value)
+    fun txWritePidGain(value: Float)   = remoteControlReceiveManager.txWritePidGain(value)
+
+    fun rxReadMachineConfiguration() {
         viewModelScope.launch {
-            remoteControlReceiveManager.rxReadBrewConfiguration()
+            remoteControlReceiveManager.rxReadMachineConfiguration()
         }
     }
     fun rxReadPIDConfiguration() {
@@ -350,33 +358,3 @@ class  RemoteControlViewModel @Inject constructor(
         //remoteControlReceiveManager.closeConnection()
     }
 }
-/*
-        viewModelScope.launch {
-            // Launch a coroutine to read the brew configuration
-            remoteControlReceiveManager.rxReadBrewConfiguration()
-            remoteControlReceiveManager.dataBrewCfgPreInfusionPwr.collect { result ->
-                when (result) {
-                    //Video1 -> TimeStamp: 1:09:30
-                    is Resource.Success -> {
-                        connectionState = result.data.connectionState
-                        brewConfigData.PreInfussionPwr = result.data.charData
-                        //continuation.resume(Unit) // Resume the coroutine when data collection is complete
-                    }
-                }
-            }
-        }
-        viewModelScope.launch {
-            // Launch a coroutine to read the brew configuration
-            remoteControlReceiveManager.rxReadBrewConfiguration()
-            remoteControlReceiveManager.dataBrewCfg___InfusionPwr.collect { result ->
-                when (result) {
-                    //Video1 -> TimeStamp: 1:09:30
-                    is Resource.Success -> {
-                        connectionState = result.data.connectionState
-                        brewConfigData.InfussionPwr = result.data.charData
-                        //continuation.resume(Unit) // Resume the coroutine when data collection is complete
-                    }
-                }
-            }
-        }
-        */

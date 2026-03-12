@@ -17,8 +17,6 @@ import com.example.blespresso.data.BoilerSetpoint
 import com.example.blespresso.data.CharDataClass
 import com.example.blespresso.data.ConnectionState
 import com.example.blespresso.data.RemoteControlReceiveManager
-import com.example.blespresso.presentation.C_BrewConfigData
-import com.example.blespresso.presentation.C_PIDConfigData
 import com.example.blespresso.utilities.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,12 +84,8 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         "00001507-00b0-4240-ba50-05ca45bf8abc"
 
     private var characteristicToReadQueue = ArrayList<Any>()
-    private var characteristicToWriteQueue = ArrayList<Any>()
-    private var characteristicDataToWriteQueue = ArrayList<Any>()
-    private var characteristicToReadQueueIndex: Int=0
-    private var characteristicToWriteQueueIndex: Int=0
-    private var characteristicToReadFLAG:  Boolean = true
-    private var characteristicToWriteFLAG:  Boolean = false
+    private var characteristicToReadQueueIndex: Int = 0
+    private var characteristicToReadFLAG: Boolean = true
 
     override val data: MutableSharedFlow<Resource<BoilerDataResult>> = MutableSharedFlow()
     override val dataToWrite: MutableSharedFlow<Resource<BoilerDataResult>> = MutableSharedFlow()
@@ -260,7 +254,6 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                 when(uuid)
                 {
                     UUID.fromString(SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID)->{
-                        characteristicToReadFLAG = false
                         super.onCharacteristicRead(gatt, characteristic, status)
                         rxString = characteristic?.getStringValue(0).toString()
                         Log.d("BLEReceiverManager2", "I have read: $rxString")
@@ -283,7 +276,6 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                         Log.d("BLEReceiverManagerRX", "Target TEMPERATURE: $rxtemperature")
                     }
                     UUID.fromString(STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID)->{
-                        characteristicToReadFLAG = false
                         super.onCharacteristicRead(gatt, characteristic, status)
                         rxString = characteristic?.getStringValue(0).toString()
                         Log.d("BLEReceiverManager2", "I have read steam setpoint: $rxString")
@@ -503,81 +495,43 @@ class RemoteControlBLEReceiveManager @Inject constructor(
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                // Check which characteristic was written
-                with(characteristic)
-                {
+                with(characteristic) {
                     when (uuid) {
-                        UUID.fromString(BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID)->{
-                            Log.d("BLE_ManagerTX", "BREW configuration -PRE_INFUSION_POWER-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID)->{
-                            Log.d("BLE_ManagerTX", "BREW configuration -PRE_INFUSION_TIME-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_BREW_INFUSION_POWER_UUID)->{
-                            Log.d("BLE_ManagerTX", "BREW configuration -INFUSION_POWER-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_BREW_INFUSION_TIME__UUID)->{
-                            Log.d("BLE_ManagerTX", "BREW configuration -INFUSION_TIME-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_BREW_DECLINING_PR_POWER_UUID)->{
-                            Log.d("BLE_ManagerTX", "BREW configuration -DECLINING_PR_POWER-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_BREW_DECLINING_PR_TIME__UUID)->{
-                            Log.d("BLE_ManagerTX", "BREW configuration -DECLINING_PR_TIME-> ")
-                        }
-                        /////////////////////////////////////////////////////////////////////////
-                        UUID.fromString(BLE_CHAR_PID_P_TERM_UUID)->{
-                            Log.d("BLE_ManagerTX", "PID configuration -P_TERM-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_PID_I_TERM_UUID)->{
-                            Log.d("BLE_ManagerTX", "PID configuration -PRE_INFUSION_TIME-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_PID_I_MAX_TERM_UUID)->{
-                            Log.d("BLE_ManagerTX", "PID configuration -I_TERM-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_PID_I_TERM_WINDUP_UUID)->{
-                            Log.d("BLE_ManagerTX", "PID configuration -I_TERM_WINDUP-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_PID_D_TERM_UUID)->{
-                            Log.d("BLE_ManagerTX", "PID configuration -D_TERM-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_PID_D_TERM_LPF_UUID)->{
-                            Log.d("BLE_ManagerTX", "PID configuration -D_TERM_LPF-> ")
-                        }
-                        UUID.fromString(BLE_CHAR_PID_GAIN___UUID)->{
-                            Log.d("BLE_ManagerTX", "PID configuration -PID_GAIN-> ")
-                        }
+                        UUID.fromString(SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID) ->
+                            Log.d("BLE_ManagerTX", "Boiler Target Temperature Write Successful")
+                        UUID.fromString(STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID) ->
+                            Log.d("BLE_ManagerTX", "Steam Temperature Setpoint Write Successful")
+                        UUID.fromString(BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID) ->
+                            Log.d("BLE_ManagerTX", "BREW -PRE_INFUSION_POWER-> Write Successful")
+                        UUID.fromString(BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID) ->
+                            Log.d("BLE_ManagerTX", "BREW -PRE_INFUSION_TIME-> Write Successful")
+                        UUID.fromString(BLE_CHAR_BREW_INFUSION_POWER_UUID) ->
+                            Log.d("BLE_ManagerTX", "BREW -INFUSION_POWER-> Write Successful")
+                        UUID.fromString(BLE_CHAR_BREW_INFUSION_TIME__UUID) ->
+                            Log.d("BLE_ManagerTX", "BREW -INFUSION_TIME-> Write Successful")
+                        UUID.fromString(BLE_CHAR_BREW_DECLINING_PR_POWER_UUID) ->
+                            Log.d("BLE_ManagerTX", "BREW -DECLINING_PR_POWER-> Write Successful")
+                        UUID.fromString(BLE_CHAR_BREW_DECLINING_PR_TIME__UUID) ->
+                            Log.d("BLE_ManagerTX", "BREW -DECLINING_PR_TIME-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_P_TERM_UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -P_TERM-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_I_TERM_UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -I_TERM-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_I_MAX_TERM_UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -I_MAX_TERM-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_I_TERM_WINDUP_UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -I_TERM_WINDUP-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_D_TERM_UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -D_TERM-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_D_TERM_LPF_UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -D_TERM_LPF-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_GAIN___UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -PID_GAIN-> Write Successful")
                         else -> Unit
                     }
                 }
-                if(characteristicToWriteFLAG)
-                {
-                    //println(characteristicToWriteQueue.size)
-                    characteristicToWriteQueue.remove(characteristicToWriteQueue.get(characteristicToWriteQueueIndex))
-                    characteristicDataToWriteQueue.remove(characteristicDataToWriteQueue.get(characteristicToWriteQueueIndex))
-                    //println(characteristicToWriteQueue.size)
-                    if(characteristicToWriteQueue.size >= 0)
-                    {
-                        characteristicToWriteQueueIndex--
-                        //characteristicDataToWriteQueueIndex--
-                        if (characteristicToWriteQueueIndex == -1) {
-                            Log.d("BLETransmitterManager", "Complete")
-                            characteristicToWriteFLAG = false
-                        }
-                        else {
-                            Log.d("BLETransmitterManager", "Write Next CHAR")
-                            //println(characteristicToWriteQueue.get(characteristicToWriteQueueIndex))
-                            println(characteristicDataToWriteQueue)
-                            println(characteristicDataToWriteQueue.get(characteristicToWriteQueueIndex))
-                            writeCharacteristicsDevice(
-                                characteristicToWriteQueue.get(characteristicToWriteQueueIndex) as BluetoothGattCharacteristic,
-                                characteristicDataToWriteQueue.get(characteristicToWriteQueueIndex).toString().toByteArray())
-                        }
-                    }
-                }
-
             } else {
-                // Characteristic write failed
+                Log.d("BLE_ManagerTX", "Write FAILED status=$status uuid=${characteristic.uuid}")
             }
         }
 
@@ -612,6 +566,17 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                     else -> Unit
                 }
             }
+        }
+    }
+
+    // TLDR: Helper that encodes a Float to a fixed-width ASCII digit string and writes it
+    //       to the specified GATT characteristic via the given service and char UUIDs.
+    private fun writeCharacteristic(serviceUuid: String, charUuid: String, value: Float, digits: Int) {
+        val sb = StringBuilder()
+        dataConvertionFloatToCharacteristic(value, sb, digits)
+        var characteristicToWr = findCharacteristic(serviceUuid, charUuid)
+        if(characteristicToWr != null) {
+            writeCharacteristicsDevice(characteristicToWr, sb.toString().toByteArray())
         }
     }
 
@@ -679,17 +644,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         }
     }
 
-    override fun txNewBoilerTargetTemp(newTarget: Float) {
-        val txTempStringChar = StringBuilder()
-        dataConvertionFloatToCharacteristic(newTarget,txTempStringChar,4)
-        var characteristicNewTargetTemp = findCharacteristic(CONTROL_SERVICE_UUID,SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID)
-        if (characteristicNewTargetTemp != null)
-        {
-            //Log.d("BLE_txTargetTemp", "TxTempToBLEspresso: $txTempStringChar")
-            //Log.d("BLE_txTargetTempHex", "TxTempToBLEspressoHex: $txTempStringChar")
-            writeCharacteristicsDevice(characteristicNewTargetTemp,(txTempStringChar.toString()).toByteArray())
-        }
-    }
+
 
     override fun rxReadBoilerTargetTemp()
     {
@@ -709,178 +664,70 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         }
     }
 
-    override fun txNewSteamTempSetpoint(newTarget: Float) {
-        val txTempStringChar = StringBuilder()
-        dataConvertionFloatToCharacteristic(newTarget, txTempStringChar, 4)
-        var characteristicSteamTemp = findCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID)
-        if (characteristicSteamTemp != null) {
-            Log.d("BLE_txSteamTemp", "TxSteamTempToBLEspresso: $txTempStringChar")
-            writeCharacteristicsDevice(characteristicSteamTemp, (txTempStringChar.toString()).toByteArray())
-        }
-    }
+    // TLDR: Writes the new boiler target temperature to the device (4-digit ASCII format, e.g. 93.5°C → "0935").
+    override fun txNewBoilerTargetTemp(newTarget: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID, newTarget, 4)
+    // TLDR: Writes the new steam temperature setpoint to the device (4-digit ASCII format, e.g. 140.0°C → "1400").
+    override fun txNewSteamTempSetpoint(newTarget: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID, newTarget, 4)
 
-    override fun txfcnWriteBrewConfiguration(newTxData: C_BrewConfigData)
-    {
-        var cfgDataCounter = 0
-        characteristicDataToWriteQueue.clear()
-        characteristicToWriteQueue.clear()
-        val characteristicsToWrite = listOf(
-            BLE_CHAR_BREW_DECLINING_PR_TIME__UUID,
-            BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,
-            BLE_CHAR_BREW_INFUSION_TIME__UUID,
-            BLE_CHAR_BREW_INFUSION_POWER_UUID,
-            BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,
-            BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID
-        )
-        for (characteristicUuid in characteristicsToWrite) {
-            val characteristicID = findCharacteristic(CONTROL_SERVICE_UUID, characteristicUuid)
-            if (characteristicID != null) {
-                val txStringChar = StringBuilder()
-                cfgDataCounter+=1
-                println(cfgDataCounter)
-                when(cfgDataCounter)
-                {
-                    6 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.PreInfussionPwr,txStringChar,3)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    5 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.PreInfussionTmr,txStringChar,3)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    4 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.InfussionPwr,txStringChar,4)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    3 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.InfussionTmr,txStringChar,3)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    2 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.DecliningPwr,txStringChar,4)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    1 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.DecliningTmr,txStringChar,3)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    else -> Unit
-                }
-                println(characteristicDataToWriteQueue)
-            }
-        }
-        Log.d("BLE_txBREWcfg", "About to WRITE new brew configuration")
-        characteristicToWriteQueueIndex = 5
-        //characteristicDataToWriteQueueIndex = 5
-        println(characteristicToWriteQueue.get(characteristicToWriteQueueIndex))
-        println(characteristicDataToWriteQueue.get(characteristicToWriteQueueIndex))
-        characteristicToWriteFLAG  = true
-        writeCharacteristicsDevice(
-            characteristicToWriteQueue.get(characteristicToWriteQueueIndex) as BluetoothGattCharacteristic,
-            characteristicDataToWriteQueue.get(characteristicToWriteQueueIndex).toString().toByteArray())
-    }
-    override suspend fun rxReadBrewConfiguration(){
+    // TLDR: Writes pre-infusion pump power % to device (3-digit format, e.g. 35.0% → "350").
+    override fun txWritePreInfusionPwr(value: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID,     value, 3)
+    // TLDR: Writes pre-infusion phase duration in seconds to device (3-digit format, e.g. 5.0s → "050").
+    override fun txWritePreInfusionTmr(value: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,     value, 3)
+    // TLDR: Writes full infusion pump power % to device (4-digit format, e.g. 99.0% → "0990").
+    override fun txWriteInfusionPwr(value: Float)    = writeCharacteristic(CONTROL_SERVICE_UUID, BLE_CHAR_BREW_INFUSION_POWER_UUID,         value, 4)
+    // TLDR: Writes full infusion phase duration in seconds to device (3-digit format, e.g. 5.0s → "050").
+    override fun txWriteInfusionTmr(value: Float)    = writeCharacteristic(CONTROL_SERVICE_UUID, BLE_CHAR_BREW_INFUSION_TIME__UUID,         value, 3)
+    // TLDR: Writes declining pressure pump power % to device (4-digit format, e.g. 80.0% → "0800").
+    override fun txWriteDecliningPwr(value: Float)   = writeCharacteristic(CONTROL_SERVICE_UUID, BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,     value, 4)
+    // TLDR: Writes declining pressure phase duration in seconds to device (3-digit format, e.g. 10.0s → "100").
+    override fun txWriteDecliningTmr(value: Float)   = writeCharacteristic(CONTROL_SERVICE_UUID, BLE_CHAR_BREW_DECLINING_PR_TIME__UUID,     value, 3)
+
+
+    // TLDR: Writes PID Proportional term to device (4-digit format, e.g. 12.5 → "0125").
+    override fun txWritePidPTerm(value: Float)  = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_P_TERM_UUID,        value, 4)
+    // TLDR: Writes PID Integral term to device (3-digit format, e.g. 1.5 → "015").
+    override fun txWritePidITerm(value: Float)  = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_TERM_UUID,        value, 3)
+    // TLDR: Writes PID Integral max clamp value to device (4-digit format, e.g. 50.0 → "0500").
+    override fun txWritePidIMax(value: Float)   = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_MAX_TERM_UUID,    value, 4)
+    // TLDR: Writes PID anti-windup flag to device (1-digit format: "1" if ≥1.0, "0" otherwise).
+    override fun txWritePidWindup(value: Float) = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_TERM_WINDUP_UUID, value, 1)
+    // TLDR: Writes PID Derivative term to device (3-digit format, e.g. 2.5 → "025").
+    override fun txWritePidDTerm(value: Float)  = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_D_TERM_UUID,        value, 3)
+    // TLDR: Writes PID Derivative low-pass filter cutoff to device (4-digit format, e.g. 10.0 → "0100").
+    override fun txWritePidDLpf(value: Float)   = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_D_TERM_LPF_UUID,    value, 4)
+    // TLDR: Writes overall PID controller gain multiplier to device (4-digit format, e.g. 1.0 → "0010").
+    override fun txWritePidGain(value: Float)   = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_GAIN___UUID,        value, 4)
+
+    // TLDR: Reads all 8 machine-configuration UUIDs in a single GATT-safe sequential queue:
+    //       boiler target temp → steam setpoint → 6 brew params (pre-infusion, infusion, declining).
+    //       Queue is processed tail-to-head via onCharacteristicRead callbacks.
+    override suspend fun rxReadMachineConfiguration() {
         characteristicToReadFLAG = true
         characteristicToReadQueue.clear()
-        val characteristicsToRead = listOf(
-            BLE_CHAR_BREW_DECLINING_PR_TIME__UUID,
-            BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,
-            BLE_CHAR_BREW_INFUSION_TIME__UUID,
-            BLE_CHAR_BREW_INFUSION_POWER_UUID,
-            BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,
-            BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID
+        // Items are added with the last-to-read at index 0; queue is consumed from the tail.
+        val uuidsToRead = listOf(
+            BLE_CHAR_BREW_DECLINING_PR_TIME__UUID,    // idx 0 – read last
+            BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,    // idx 1
+            BLE_CHAR_BREW_INFUSION_TIME__UUID,        // idx 2
+            BLE_CHAR_BREW_INFUSION_POWER_UUID,        // idx 3
+            BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,    // idx 4
+            BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID,    // idx 5
+            STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID, // idx 6
+            SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID  // idx 7 – read first
         )
-        for (characteristicUuid in characteristicsToRead) {
-            val characteristicToRead = findCharacteristic(CONTROL_SERVICE_UUID, characteristicUuid)
-            println(characteristicToRead)
-            if (characteristicToRead != null) {
-                //println(characteristicUuid)
-                characteristicToReadQueue.add(characteristicToRead)
+        for (uuid in uuidsToRead) {
+            val characteristic = findCharacteristic(CONTROL_SERVICE_UUID, uuid)
+            if (characteristic != null) {
+                println(characteristic)
+                characteristicToReadQueue.add(characteristic)
+                println(characteristicToReadQueue.size)
             }
         }
-        Log.d("BLE_rxTargetTemp", "About to READ brew configuration")
-        characteristicToReadQueueIndex = 5
-        readCharacteristicsDevice( characteristicToReadQueue.get(characteristicToReadQueueIndex) as BluetoothGattCharacteristic)
+        Log.d("BLE_rxMachineCfg", "About to READ all 8 machine configuration characteristics")
+        characteristicToReadQueueIndex = 7
+        readCharacteristicsDevice(characteristicToReadQueue.get(characteristicToReadQueueIndex) as BluetoothGattCharacteristic)
     }
 
-    override fun txfcnWritePIDConfiguration(newTxData: C_PIDConfigData)
-    {
-        var cfgDataCounter = 0
-        characteristicDataToWriteQueue.clear()
-        characteristicToWriteQueue.clear()
-        val characteristicsPIDToRead = listOf(
-            BLE_CHAR_PID_GAIN___UUID,
-            BLE_CHAR_PID_D_TERM_LPF_UUID,
-            BLE_CHAR_PID_D_TERM_UUID,
-            BLE_CHAR_PID_I_TERM_WINDUP_UUID,
-            BLE_CHAR_PID_I_MAX_TERM_UUID,
-            BLE_CHAR_PID_I_TERM_UUID,
-            BLE_CHAR_PID_P_TERM_UUID
-        )
-        for (characteristicUuid in characteristicsPIDToRead) {
-            val characteristicID = findCharacteristic(CONTROL_PID_SERVICE_UUID, characteristicUuid)
-            if (characteristicID != null) {
-                val txStringChar = StringBuilder()
-                cfgDataCounter+=1
-                println(cfgDataCounter)
-                when(cfgDataCounter)
-                {
-                    7 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.cfgPterm,txStringChar,4)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    6 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.cfgIterm,txStringChar,3)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    5 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.cfgImaxterm,txStringChar,4)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    4 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.cfgWindup,txStringChar,1)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    3 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.cfgDterm,txStringChar,3)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    2 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.cfgDlpfterm,txStringChar,4)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    1 ->{ characteristicToWriteQueue.add(characteristicID)
-                        dataConvertionFloatToCharacteristic(newTxData.cfgGainterm,txStringChar,4)
-                        characteristicDataToWriteQueue.add(txStringChar)
-                        println(txStringChar)
-                    }
-                    else -> Unit
-                }
-                println(characteristicDataToWriteQueue)
-            }
-        }
-        Log.d("BLE_txPIDcfg", "About to WRITE new PID configuration")
-        characteristicToWriteQueueIndex = 6
-        println(characteristicToWriteQueue.get(characteristicToWriteQueueIndex))
-        println(characteristicDataToWriteQueue.get(characteristicToWriteQueueIndex))
-        characteristicToWriteFLAG  = true
-        writeCharacteristicsDevice(
-            characteristicToWriteQueue.get(characteristicToWriteQueueIndex) as BluetoothGattCharacteristic,
-            characteristicDataToWriteQueue.get(characteristicToWriteQueueIndex).toString().toByteArray())
-
-    }
     override suspend fun rxReadPIDConfiguration(){
         characteristicToReadFLAG = true
         characteristicToReadQueue.clear()
@@ -1019,73 +866,28 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     }
 
 }
-
 /*
-override suspend fun rxReadBrewConfiguration(){
+    override suspend fun rxReadBrewConfiguration(){
+        characteristicToReadFLAG = true
+        characteristicToReadQueue.clear()
         val characteristicsToRead = listOf(
-            BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID,
-            BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,
-            BLE_CHAR_BREW_INFUSION_POWER_UUID,
-            BLE_CHAR_BREW_INFUSION_TIME__UUID,
+            BLE_CHAR_BREW_DECLINING_PR_TIME__UUID,
             BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,
-            BLE_CHAR_BREW_DECLINING_PR_TIME__UUID
+            BLE_CHAR_BREW_INFUSION_TIME__UUID,
+            BLE_CHAR_BREW_INFUSION_POWER_UUID,
+            BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,
+            BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID
         )
         for (characteristicUuid in characteristicsToRead) {
-            println(characteristicUuid)
-            println(characteristicsToRead.last())
             val characteristicToRead = findCharacteristic(CONTROL_SERVICE_UUID, characteristicUuid)
+            println(characteristicToRead)
             if (characteristicToRead != null) {
-                Log.d("BLE_rxTargetTemp", "About to READ brew configuration: $characteristicUuid")
-                readCharacteristicsDevice(characteristicToRead)
+                //println(characteristicUuid)
+                characteristicToReadQueue.add(characteristicToRead)
             }
         }
+        Log.d("BLE_rxTargetTemp", "About to READ brew configuration")
+        characteristicToReadQueueIndex = 5
+        readCharacteristicsDevice( characteristicToReadQueue.get(characteristicToReadQueueIndex) as BluetoothGattCharacteristic)
     }
- */
-
-/*
-override fun rxReadBrewConfiguration()
-{
-    //Read CHAR → BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID
-    var characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID,BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID)
-    if (characteristictoRead != null)
-    {
-        Log.d("BLE_rxTargetTemp", "About to READ brew configuration: PreInfusion PWR")
-        readCharacteristicsDevice(characteristictoRead)
-    }
-    //Read CHAR → BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID
-    characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID,BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID)
-    if (characteristictoRead != null)
-    {
-        Log.d("BLE_rxTargetTemp", "About to READ brew configuration: PreInfusion TIME")
-        readCharacteristicsDevice(characteristictoRead)
-    }
-    //Read CHAR → BLE_CHAR_BREW_INFUSION_POWER_UUID
-    characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID,BLE_CHAR_BREW_INFUSION_POWER_UUID)
-    if (characteristictoRead != null)
-    {
-        Log.d("BLE_rxTargetTemp", "About to READ brew configuration: Infusion POWER")
-        readCharacteristicsDevice(characteristictoRead)
-    }
-    //Read CHAR → BLE_CHAR_BREW_INFUSION_TIME__UUID
-    characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID,BLE_CHAR_BREW_INFUSION_TIME__UUID)
-    if (characteristictoRead != null)
-    {
-        Log.d("BLE_rxTargetTemp", "About to READ brew configuration: Infusion TIME")
-        readCharacteristicsDevice(characteristictoRead)
-    }
-    //Read CHAR → BLE_CHAR_BREW_DECLINING_PR_POWER_UUID
-    characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID,BLE_CHAR_BREW_DECLINING_PR_POWER_UUID)
-    if (characteristictoRead != null)
-    {
-        Log.d("BLE_rxTargetTemp", "About to READ brew configuration: Declining POWER")
-        readCharacteristicsDevice(characteristictoRead)
-    }
-    //Read CHAR → BLE_CHAR_BREW_DECLINING_PR_TIME__UUID
-    characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID,BLE_CHAR_BREW_DECLINING_PR_TIME__UUID)
-    if (characteristictoRead != null)
-    {
-        Log.d("BLE_rxTargetTemp", "About to READ brew configuration: DEclining TIME")
-        readCharacteristicsDevice(characteristictoRead)
-    }
-}
- */
+*/

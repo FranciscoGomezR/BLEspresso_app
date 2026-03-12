@@ -68,7 +68,7 @@ fun BlespressoCtrlParamScreen(
     viewModel: RemoteControlViewModel = hiltViewModel()
 ) {
     //screen content
-    var cPterm_TB = remember { CTextBox() }
+    val cPterm_TB = remember { CTextBox() }
     cPterm_TB.maxInValue = 100.0f
     cPterm_TB.minInValue = 0.0f
     val cIterm_TB = remember { CTextBox() }
@@ -125,31 +125,33 @@ fun BlespressoCtrlParamScreen(
             "Passing PID configurations from BLE to Screen FieldText"
         )
 
-        cPterm_TB.userInput =
-            TextFieldValue(viewModel.pIDConfigData.cfgPterm.toString())
-        val textdummy = cPterm_TB.userInput.text.toString()
-        Log.d(
-            "ScreenPIDconfiguration",
-            "P value field: $textdummy "
-        )
+        cPterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgPterm.toString())
+        cPterm_TB.originalValue = viewModel.pIDConfigData.cfgPterm.toString()
+        cPterm_TB.modified = false
         cPterm_TB.clickedOnce = false
-        cIterm_TB.userInput =
-            TextFieldValue(viewModel.pIDConfigData.cfgIterm.toString())
+        cIterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgIterm.toString())
+        cIterm_TB.originalValue = viewModel.pIDConfigData.cfgIterm.toString()
+        cIterm_TB.modified = false
         cIterm_TB.clickedOnce = false
-        cIlimit_TB.userInput =
-            TextFieldValue(viewModel.pIDConfigData.cfgImaxterm.toString())
+        cIlimit_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgImaxterm.toString())
+        cIlimit_TB.originalValue = viewModel.pIDConfigData.cfgImaxterm.toString()
+        cIlimit_TB.modified = false
         cIlimit_TB.clickedOnce = false
-        cIwindup_TB.userInput =
-            TextFieldValue(viewModel.pIDConfigData.cfgWindup.toString())
+        cIwindup_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgWindup.toString())
+        cIwindup_TB.originalValue = viewModel.pIDConfigData.cfgWindup.toString()
+        cIwindup_TB.modified = false
         cIwindup_TB.clickedOnce = false
-        cDterm_TB.userInput =
-            TextFieldValue(viewModel.pIDConfigData.cfgDterm.toString())
+        cDterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgDterm.toString())
+        cDterm_TB.originalValue = viewModel.pIDConfigData.cfgDterm.toString()
+        cDterm_TB.modified = false
         cDterm_TB.clickedOnce = false
-        cLPFterm_TB.userInput =
-            TextFieldValue(viewModel.pIDConfigData.cfgDlpfterm.toString())
+        cLPFterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgDlpfterm.toString())
+        cLPFterm_TB.originalValue = viewModel.pIDConfigData.cfgDlpfterm.toString()
+        cLPFterm_TB.modified = false
         cLPFterm_TB.clickedOnce = false
-        cGainterm_TB.userInput =
-            TextFieldValue(viewModel.pIDConfigData.cfgGainterm.toString())
+        cGainterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgGainterm.toString())
+        cGainterm_TB.originalValue = viewModel.pIDConfigData.cfgGainterm.toString()
+        cGainterm_TB.modified = false
         cGainterm_TB.clickedOnce = false
         // Reset the flag
         passRxvalfromBLEtoVar = false
@@ -770,16 +772,11 @@ fun BlespressoCtrlParamScreen(
                         ) {
                             Button(
                                 onClick = {
+                                    keyboardController?.hide()      // Hide the keyboard when the button is clicked
+                                    passRxvalfromBLEtoVar = true
                                     /* Handle button click → read PID Configuration */
                                     viewModel.rxReadPIDConfiguration()
-                                    keyboardController?.hide()      // Hide the keyboard when the button is clicked
-                                    Toast.makeText(
-                                        context,
-                                        "Reading PID configuration\"",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    passRxvalfromBLEtoVar = true
-
+                                    Toast.makeText(context, "Reading PID configuration\"", Toast.LENGTH_SHORT).show()
                                 },
                                 colors = ButtonDefaults.buttonColors(backgroundColor = accent),
                                 modifier = Modifier
@@ -826,53 +823,65 @@ fun BlespressoCtrlParamScreen(
                                                 ).show()
                                             },
                                             onDoubleTap = {
-                                                /* Handle button click → WRITE Brew Configuration */
-                                                keyboardController?.hide()      // Hide the keyboard when the button is clicked
-                                                if (!(cPterm_TB.userInput.text.isNullOrBlank() && cIterm_TB.userInput.text.isNullOrBlank()
-                                                            && cIlimit_TB.userInput.text.isNullOrBlank() && cIwindup_TB.userInput.text.isNullOrBlank()
-                                                            && cDterm_TB.userInput.text.isNullOrBlank() && cLPFterm_TB.userInput.text.isNullOrBlank()
-                                                            && cGainterm_TB.userInput.text.isNullOrBlank())
-                                                ) {
-                                                    viewModel.txNewPIDConfigData.cfgPterm =
-                                                        cPterm_TB.userInput.text.toFloat()
-                                                    viewModel.txNewPIDConfigData.cfgIterm =
-                                                        cIterm_TB.userInput.text.toFloat()
-                                                    viewModel.txNewPIDConfigData.cfgImaxterm =
-                                                        cIlimit_TB.userInput.text.toFloat()
-                                                    viewModel.txNewPIDConfigData.cfgWindup =
-                                                        cIwindup_TB.userInput.text.toFloat()
-                                                    viewModel.txNewPIDConfigData.cfgDterm =
-                                                        cDterm_TB.userInput.text.toFloat()
-                                                    viewModel.txNewPIDConfigData.cfgDlpfterm =
-                                                        cLPFterm_TB.userInput.text.toFloat()
-                                                    viewModel.txNewPIDConfigData.cfgGainterm =
-                                                        cGainterm_TB.userInput.text.toFloat()
+                                                keyboardController?.hide()
+                                                var anyModified = false
 
-                                                    cPterm_TB.clickedOnce = false
-                                                    cIterm_TB.clickedOnce = false
-                                                    cIlimit_TB.clickedOnce = false
-                                                    cIwindup_TB.clickedOnce = false
-                                                    cDterm_TB.clickedOnce = false
-                                                    cLPFterm_TB.clickedOnce = false
-                                                    cGainterm_TB.clickedOnce = false
-                                                    Log.d(
-                                                        "RemoteControlScreen", "SAVED: \n" +
-                                                                "P Term:${viewModel.txNewPIDConfigData.cfgPterm}\n" +
-                                                                "I Term:${viewModel.txNewPIDConfigData.cfgIterm}\n" +
-                                                                "Imax Term:${viewModel.txNewPIDConfigData.cfgImaxterm}\n" +
-                                                                "I windup:${viewModel.txNewPIDConfigData.cfgWindup}\n" +
-                                                                "D Term:${viewModel.txNewPIDConfigData.cfgDterm}\n" +
-                                                                "D LPF:${viewModel.txNewPIDConfigData.cfgDlpfterm}\n" +
-                                                                "PID gain:${viewModel.txNewPIDConfigData.cfgGainterm}\n"
-                                                    )
-                                                    viewModel.txNewPIDConfiguration()
-                                                    Toast.makeText(
-                                                        context,
-                                                        "Sending new PID configuration",
-                                                        Toast.LENGTH_LONG
-                                                    ).show()
+                                                // TLDR: Write PID Proportional term if user changed it
+                                                if (cPterm_TB.modified && cPterm_TB.userInput.text.isNotBlank()) {
+                                                    viewModel.txWritePidPTerm(cPterm_TB.userInput.text.toFloat())
+                                                    Log.d("ControllerParamScreen", "P Term: ${cPterm_TB.userInput.text} -> Saved")
+                                                    cPterm_TB.modified = false
+                                                    anyModified = true
+                                                }
+                                                // TLDR: Write PID Integral term if user changed it
+                                                if (cIterm_TB.modified && cIterm_TB.userInput.text.isNotBlank()) {
+                                                    viewModel.txWritePidITerm(cIterm_TB.userInput.text.toFloat())
+                                                    Log.d("ControllerParamScreen", "I Term: ${cIterm_TB.userInput.text} -> Saved")
+                                                    cIterm_TB.modified = false
+                                                    anyModified = true
+                                                }
+                                                // TLDR: Write PID Integral max clamp value if user changed it
+                                                if (cIlimit_TB.modified && cIlimit_TB.userInput.text.isNotBlank()) {
+                                                    viewModel.txWritePidIMax(cIlimit_TB.userInput.text.toFloat())
+                                                    Log.d("ControllerParamScreen", "I Max Clamp: ${cIlimit_TB.userInput.text} -> Saved")
+                                                    cIlimit_TB.modified = false
+                                                    anyModified = true
+                                                }
+                                                // TLDR: Write PID anti-windup flag if user changed it
+                                                if (cIwindup_TB.modified && cIwindup_TB.userInput.text.isNotBlank()) {
+                                                    viewModel.txWritePidWindup(cIwindup_TB.userInput.text.toFloat())
+                                                    Log.d("ControllerParamScreen", "I Windup: ${cIwindup_TB.userInput.text} -> Saved")
+                                                    cIwindup_TB.modified = false
+                                                    anyModified = true
+                                                }
+                                                // TLDR: Write PID Derivative term if user changed it
+                                                if (cDterm_TB.modified && cDterm_TB.userInput.text.isNotBlank()) {
+                                                    viewModel.txWritePidDTerm(cDterm_TB.userInput.text.toFloat())
+                                                    Log.d("ControllerParamScreen", "D Term: ${cDterm_TB.userInput.text} -> Saved")
+                                                    cDterm_TB.modified = false
+                                                    anyModified = true
+                                                }
+                                                // TLDR: Write PID Derivative low-pass filter cutoff if user changed it
+                                                if (cLPFterm_TB.modified && cLPFterm_TB.userInput.text.isNotBlank()) {
+                                                    viewModel.txWritePidDLpf(cLPFterm_TB.userInput.text.toFloat())
+                                                    Log.d("ControllerParamScreen", "D LPF: ${cLPFterm_TB.userInput.text} -> Saved")
+                                                    cLPFterm_TB.modified = false
+                                                    anyModified = true
+                                                }
+                                                // TLDR: Write overall PID gain multiplier if user changed it
+                                                if (cGainterm_TB.modified && cGainterm_TB.userInput.text.isNotBlank()) {
+                                                    viewModel.txWritePidGain(cGainterm_TB.userInput.text.toFloat())
+                                                    Log.d("ControllerParamScreen", "Gain Term: ${cGainterm_TB.userInput.text} -> Saved")
+                                                    cGainterm_TB.modified = false
+                                                    anyModified = true
+                                                }
+
+                                                // TLDR: Show confirmation toast if any PID field was written, otherwise notify user nothing changed
+                                                if (anyModified) {
+                                                    Log.d("ControllerParamScreen", "Sent modified PID parameters")
+                                                    Toast.makeText(context, "Sending modified PID configuration", Toast.LENGTH_LONG).show()
                                                 } else {
-                                                    //Toast.makeText(context,"Provide a new temperature",Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "No fields have been modified", Toast.LENGTH_SHORT).show()
                                                 }
                                             }
                                         )

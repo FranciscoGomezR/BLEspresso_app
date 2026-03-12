@@ -301,21 +301,14 @@ fun RemoteControlScreen(
         passRxvalfromBLEtoVar = false
     }
 
-    // Auto-load brew config and boiler temp when connection is established
+    // Auto-load all 8 machine UUIDs when connection is established
     LaunchedEffect(bleConnectionState) {
         if (bleConnectionState == ConnectionState.Connected && !viewModel.hasAutoLoadedBrewConfig) {
-            Log.d("ScreenBREWconfiguration", "Auto-loading brew config on connection")
-            viewModel.rxReadBrewConfiguration()
+            Log.d("ScreenBREWconfiguration", "Auto-loading machine configuration on connection")
+            viewModel.rxReadMachineConfiguration()
             passRxvalfromBLEtoVar = true
-            viewModel.hasAutoLoadedBrewConfig = true
-            delay(500L)
-            // Also auto-load temperatures
-            Log.d("ScreenNavigation", "Auto-loading boiler temperature on connection")
-            viewModel.rxNewBoilerTargetTemp()
-            delay(100L)
-            // read new steam setpoint as well
-            viewModel.rxReadSteamTempSetpoint()
             passTempValModeltoVar = true
+            viewModel.hasAutoLoadedBrewConfig = true
         } else if (bleConnectionState != ConnectionState.Connected) {
             viewModel.hasAutoLoadedBrewConfig = false // Reset for next connection
         }
@@ -394,10 +387,6 @@ fun RemoteControlScreen(
             }
         } else if (bleConnectionState == ConnectionState.Connected) {
             var isFocused by remember { mutableStateOf(false) }
-
-            var newTargetTemperature by remember {
-                mutableStateOf(0f)
-            }
 
             // Get the software keyboard controller
             val keyboardController = LocalSoftwareKeyboardController.current
@@ -745,16 +734,12 @@ fun RemoteControlScreen(
                                 Button(
                                     onClick = {
                                         keyboardController?.hide()      // Hide the keyboard when the button is clicked
-                                        /* Handle button click → READ Temperature and Brew Configuration */
+                                        /* Handle button click → READ all 8 machine UUIDs via single GATT-safe queue */
                                         Toast.makeText(context, "Reading Machine configuration", Toast.LENGTH_SHORT).show()
                                         passTempValModeltoVar = true
                                         passRxvalfromBLEtoVar = true
-                                        // explicitly request fresh data from BLE
-                                        viewModel.rxNewBoilerTargetTemp()
-                                        viewModel.rxReadSteamTempSetpoint()
-                                        //viewModel.rxReadBrewConfiguration()
+                                        viewModel.rxReadMachineConfiguration()
                                         Log.d("ScreenBREWconfiguration", "Read configuration Button PRESSED")
-                                        //Log.d("ScreenBREWconfiguration","Printing in screen: ${viewModel.brewConfigData.PreInfussionPwr}")
                                     },
                                     colors = ButtonDefaults.buttonColors(backgroundColor = accent),
                                     modifier = Modifier
@@ -793,77 +778,69 @@ fun RemoteControlScreen(
                                                     Toast.makeText(context, "click", Toast.LENGTH_SHORT).show()
                                                 },
                                                 onDoubleTap = {
-                                                    /* Handle button click → WRITE Brew Configuration */
-                                                    keyboardController?.hide()      // Hide the keyboard when the button is clicked
+                                                    /* Handle button click → WRITE Brew & Temperature Configuration */
+                                                    keyboardController?.hide()
                                                     var anyModified = false
-                                                    // Handle temperature write
+                                                    // TLDR: Write boiler target temperature if user changed it
                                                     if (cBoilerTB.modified && cBoilerTB.userInput.text.isNotBlank()) {
-                                                        newTargetTemperature = cBoilerTB.userInput.text.toFloat()
-                                                        //cBoilerTB.clickedOnce = false
-                                                        anyModified = true
-                                                        Log.d("RemoteControlScreen", "SAVED: $newTargetTemperature C")
-                                                        viewModel.boilerSetpointTemp = newTargetTemperature
-                                                        viewModel.txNewBoilerTargetTemp()
-                                                        //Toast.makeText(context, "Sending new temperature", Toast.LENGTH_LONG).show()
-                                                    }
-
-                                                    // Handle steam temperature write
-                                                    if (cSteamTempTB.modified && cSteamTempTB.userInput.text.isNotBlank()) {
-                                                        val newSteamTemperature = cSteamTempTB.userInput.text.toFloat()
-                                                        anyModified = true
-                                                        Log.d("RemoteControlScreen", "SAVED: $newSteamTemperature C")
-                                                        viewModel.steamTempSetpoint = newSteamTemperature
-                                                        viewModel.txNewSteamTempSetpoint()
-                                                    }
-
-                                                    // Check which fields have been modified
-                                                    if (cPreinfusionPWR_TB.modified && cPreinfusionPWR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txNewBrewConfigData.PreInfussionPwr = cPreinfusionPWR_TB.userInput.text.toFloat()
-                                                        anyModified = true
-                                                    }
-                                                    if (cPreinfusionTMR_TB.modified && cPreinfusionTMR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txNewBrewConfigData.PreInfussionTmr = cPreinfusionTMR_TB.userInput.text.toFloat()
-                                                        anyModified = true
-                                                    }
-                                                    if (cInfusionPWR_TB.modified && cInfusionPWR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txNewBrewConfigData.InfussionPwr = cInfusionPWR_TB.userInput.text.toFloat()
-                                                        anyModified = true
-                                                    }
-                                                    if (cInfusionTMR_TB.modified && cInfusionTMR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txNewBrewConfigData.InfussionTmr = cInfusionTMR_TB.userInput.text.toFloat()
-                                                        anyModified = true
-                                                    }
-                                                    if (cDeclinPrPWR_TB.modified && cDeclinPrPWR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txNewBrewConfigData.DecliningPwr = cDeclinPrPWR_TB.userInput.text.toFloat()
-                                                        anyModified = true
-                                                    }
-                                                    if (cDeclinPrTMR_TB.modified && cDeclinPrTMR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txNewBrewConfigData.DecliningTmr = cDeclinPrTMR_TB.userInput.text.toFloat()
-                                                        anyModified = true
-                                                    }
-
-                                                    if (anyModified) {
-                                                        // Reset modified flags
+                                                        viewModel.txNewBoilerTargetTemp(cBoilerTB.userInput.text.toFloat())
+                                                        Log.d("RemoteControlScreen", "Brew Temperature: ${cBoilerTB.userInput.text} -> Saved")
                                                         cBoilerTB.modified = false
+                                                        anyModified = true
+                                                    }
+                                                    // TLDR: Write steam temperature setpoint if user changed it
+                                                    if (cSteamTempTB.modified && cSteamTempTB.userInput.text.isNotBlank()) {
+                                                        viewModel.txNewSteamTempSetpoint(cSteamTempTB.userInput.text.toFloat())
+                                                        Log.d("RemoteControlScreen", "Steam Temperature: ${cSteamTempTB.userInput.text} -> Saved")
+                                                        cSteamTempTB.modified = false
+                                                        anyModified = true
+                                                    }
+                                                    // TLDR: Write pre-infusion pump power % if user changed it
+                                                    if (cPreinfusionPWR_TB.modified && cPreinfusionPWR_TB.userInput.text.isNotBlank()) {
+                                                        viewModel.txWritePreInfusionPwr(cPreinfusionPWR_TB.userInput.text.toFloat())
+                                                        Log.d("RemoteControlScreen", "Pre-Infusion Power: ${cPreinfusionPWR_TB.userInput.text} -> Saved")
                                                         cPreinfusionPWR_TB.modified = false
+                                                        anyModified = true
+                                                    }
+                                                    // TLDR: Write pre-infusion phase duration (sec) if user changed it
+                                                    if (cPreinfusionTMR_TB.modified && cPreinfusionTMR_TB.userInput.text.isNotBlank()) {
+                                                        viewModel.txWritePreInfusionTmr(cPreinfusionTMR_TB.userInput.text.toFloat())
+                                                        Log.d("RemoteControlScreen", "Pre-Infusion Duration: ${cPreinfusionTMR_TB.userInput.text} sec -> Saved")
                                                         cPreinfusionTMR_TB.modified = false
+                                                        anyModified = true
+                                                    }
+                                                    // TLDR: Write full infusion pump power % if user changed it
+                                                    if (cInfusionPWR_TB.modified && cInfusionPWR_TB.userInput.text.isNotBlank()) {
+                                                        viewModel.txWriteInfusionPwr(cInfusionPWR_TB.userInput.text.toFloat())
+                                                        Log.d("RemoteControlScreen", "Infusion Power: ${cInfusionPWR_TB.userInput.text} -> Saved")
                                                         cInfusionPWR_TB.modified = false
+                                                        anyModified = true
+                                                    }
+                                                    // TLDR: Write full infusion phase duration (sec) if user changed it
+                                                    if (cInfusionTMR_TB.modified && cInfusionTMR_TB.userInput.text.isNotBlank()) {
+                                                        viewModel.txWriteInfusionTmr(cInfusionTMR_TB.userInput.text.toFloat())
+                                                        Log.d("RemoteControlScreen", "Infusion Duration: ${cInfusionTMR_TB.userInput.text} sec -> Saved")
                                                         cInfusionTMR_TB.modified = false
+                                                        anyModified = true
+                                                    }
+                                                    // TLDR: Write declining pressure pump power % if user changed it
+                                                    if (cDeclinPrPWR_TB.modified && cDeclinPrPWR_TB.userInput.text.isNotBlank()) {
+                                                        viewModel.txWriteDecliningPwr(cDeclinPrPWR_TB.userInput.text.toFloat())
+                                                        Log.d("RemoteControlScreen", "Declining Pressure Power: ${cDeclinPrPWR_TB.userInput.text} -> Saved")
                                                         cDeclinPrPWR_TB.modified = false
+                                                        anyModified = true
+                                                    }
+                                                    // TLDR: Write declining pressure phase duration (sec) if user changed it
+                                                    if (cDeclinPrTMR_TB.modified && cDeclinPrTMR_TB.userInput.text.isNotBlank()) {
+                                                        viewModel.txWriteDecliningTmr(cDeclinPrTMR_TB.userInput.text.toFloat())
+                                                        Log.d("RemoteControlScreen", "Declining Pressure Duration: ${cDeclinPrTMR_TB.userInput.text} sec -> Saved")
                                                         cDeclinPrTMR_TB.modified = false
+                                                        anyModified = true
+                                                    }
 
-                                                        Log.d(
-                                                            "RemoteControlScreen", "SAVED: \n" +
-                                                                    "Target Temperature:${viewModel.boilerSetpointTemp}\n" +
-                                                                    "PreinfusionPWR:${viewModel.txNewBrewConfigData.PreInfussionPwr}\n" +
-                                                                    "PreinfusionTMR:${viewModel.txNewBrewConfigData.PreInfussionTmr}\n" +
-                                                                    "InfusionPWR:${viewModel.txNewBrewConfigData.InfussionPwr}\n" +
-                                                                    "InfusionTMR:${viewModel.txNewBrewConfigData.InfussionTmr}\n" +
-                                                                    "DecliningPWR:${viewModel.txNewBrewConfigData.DecliningPwr}\n" +
-                                                                    "DecliningTMR:${viewModel.txNewBrewConfigData.DecliningTmr}\n"
-                                                        )
-                                                        viewModel.txNewBrewConfiguration()
-                                                        Toast.makeText(context, "Sending modified BREW configuration", Toast.LENGTH_LONG).show()
+                                                    // TLDR: Show confirmation toast if any field was written, otherwise notify user nothing changed
+                                                    if (anyModified) {
+                                                        Toast.makeText(context, "Sending modified configuration", Toast.LENGTH_LONG).show()
                                                     } else {
                                                         Toast.makeText(context, "No fields have been modified", Toast.LENGTH_SHORT).show()
                                                     }
