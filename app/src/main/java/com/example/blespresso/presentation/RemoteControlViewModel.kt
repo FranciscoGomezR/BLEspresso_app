@@ -10,7 +10,11 @@ import com.example.blespresso.data.ConnectionState
 import com.example.blespresso.data.RemoteControlReceiveManager
 import com.example.blespresso.utilities.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -47,7 +51,14 @@ class  RemoteControlViewModel @Inject constructor(
 
     var connectionState by mutableStateOf<ConnectionState>(ConnectionState.Uninitialized)
 
-    var hasAutoLoadedBrewConfig by mutableStateOf(false)
+    // TLDR: Replaced the boolean mutableState flag pattern (passRxvalfromBLEtoVar / passTempValModeltoVar) that composables
+    //       flipped to trigger a LaunchedEffect with a delay(). SharedFlow lets the ViewModel push a "data ready" event
+    //       directly to any collector; replay=1 ensures a late subscriber (e.g. after config change) still receives the last event.
+    private val _pidConfigLoaded = MutableSharedFlow<Unit>(replay = 1)
+    val pidConfigLoaded = _pidConfigLoaded.asSharedFlow()
+
+    private val _machineConfigLoaded = MutableSharedFlow<Unit>(replay = 1)
+    val machineConfigLoaded = _machineConfigLoaded.asSharedFlow()
 
     // video 1-> Time-Stamp: 1:08:30
     private fun subscribeToChanges() {
@@ -333,14 +344,67 @@ class  RemoteControlViewModel @Inject constructor(
     fun txWritePidGain(value: Float)   = remoteControlReceiveManager.txWritePidGain(value)
 
     fun rxReadMachineConfiguration() {
+        // TLDR: Replaced delay(1500L) with a proper completion signal. The BLE manager now emits
+        //       on machineConfigReadComplete when its read queue drains (index hits -1), so we
+        //       subscribe before firing the read to avoid any race, then await the signal.
         viewModelScope.launch {
+            val completed = async { remoteControlReceiveManager.machineConfigReadComplete.first() }
             remoteControlReceiveManager.rxReadMachineConfiguration()
+            completed.await()
+            _machineConfigLoaded.emit(Unit)
         }
     }
     fun rxReadPIDConfiguration() {
+        // TLDR: Same pattern as rxReadMachineConfiguration(). Replaced delay(1500L) with
+        //       pidConfigReadComplete signal emitted by the BLE manager when its queue drains.
         viewModelScope.launch {
+            val completed = async { remoteControlReceiveManager.pidConfigReadComplete.first() }
             remoteControlReceiveManager.rxReadPIDConfiguration()
+            completed.await()
+            _pidConfigLoaded.emit(Unit)
         }
+    }
+
+    // TLDR: Replaced the 40-line onDoubleTap block in ControllerParameterScreen.kt that iterated every PID field,
+    //       checked modified && isNotBlank(), called the matching txWritePid*() function, reset the flag, and
+    //       set anyModified. Moved here so the UI only passes current values; the ViewModel decides what to write.
+    //       A null argument means "not modified" — skip that field. Returns true if at least one write was issued
+    //       so the composable can show the appropriate toast.
+    fun writePIDConfig(
+        pTerm: Float?, iTerm: Float?, iMax: Float?, windup: Float?,
+        dTerm: Float?, dLpf: Float?, gain: Float?
+    ): Boolean {
+        var anyModified = false
+        pTerm?.let  { txWritePidPTerm(it);  Log.d("RemoteCtrlViewModel", "P Term: $it -> Saved");   anyModified = true }
+        iTerm?.let  { txWritePidITerm(it);  Log.d("RemoteCtrlViewModel", "I Term: $it -> Saved");   anyModified = true }
+        iMax?.let   { txWritePidIMax(it);   Log.d("RemoteCtrlViewModel", "I Max: $it -> Saved");    anyModified = true }
+        windup?.let { txWritePidWindup(it); Log.d("RemoteCtrlViewModel", "I Windup: $it -> Saved"); anyModified = true }
+        dTerm?.let  { txWritePidDTerm(it);  Log.d("RemoteCtrlViewModel", "D Term: $it -> Saved");   anyModified = true }
+        dLpf?.let   { txWritePidDLpf(it);   Log.d("RemoteCtrlViewModel", "D LPF: $it -> Saved");    anyModified = true }
+        gain?.let   { txWritePidGain(it);   Log.d("RemoteCtrlViewModel", "Gain: $it -> Saved");     anyModified = true }
+        return anyModified
+    }
+
+    // TLDR: Replaced the 50-line onDoubleTap block in RemoteControlScreen.kt that did the same check-write-reset
+    //       loop for 8 machine-config fields. Same contract as writePIDConfig: pass null for fields that were not
+    //       modified, non-null for fields to write. Logging is also centralised here instead of being spread
+    //       across the composable.
+    fun writeMachineConfig(
+        boilerTemp: Float?, steamTemp: Float?,
+        preInfPwr: Float?, preInfTmr: Float?,
+        infPwr: Float?,    infTmr: Float?,
+        declPwr: Float?,   declTmr: Float?
+    ): Boolean {
+        var anyModified = false
+        boilerTemp?.let { txNewBoilerTargetTemp(it);  Log.d("RemoteCtrlViewModel", "Brew Temp: $it -> Saved");        anyModified = true }
+        steamTemp?.let  { txNewSteamTempSetpoint(it); Log.d("RemoteCtrlViewModel", "Steam Temp: $it -> Saved");       anyModified = true }
+        preInfPwr?.let  { txWritePreInfusionPwr(it);  Log.d("RemoteCtrlViewModel", "Pre-Inf Pwr: $it -> Saved");      anyModified = true }
+        preInfTmr?.let  { txWritePreInfusionTmr(it);  Log.d("RemoteCtrlViewModel", "Pre-Inf Tmr: $it -> Saved");      anyModified = true }
+        infPwr?.let     { txWriteInfusionPwr(it);     Log.d("RemoteCtrlViewModel", "Infusion Pwr: $it -> Saved");      anyModified = true }
+        infTmr?.let     { txWriteInfusionTmr(it);     Log.d("RemoteCtrlViewModel", "Infusion Tmr: $it -> Saved");      anyModified = true }
+        declPwr?.let    { txWriteDecliningPwr(it);    Log.d("RemoteCtrlViewModel", "Declining Pwr: $it -> Saved");     anyModified = true }
+        declTmr?.let    { txWriteDecliningTmr(it);    Log.d("RemoteCtrlViewModel", "Declining Tmr: $it -> Saved");     anyModified = true }
+        return anyModified
     }
 
     fun reconnect() {
@@ -356,5 +420,28 @@ class  RemoteControlViewModel @Inject constructor(
         super.onCleared()
         //had to comment this line to prevent GATT to close connection when chaning screen
         //remoteControlReceiveManager.closeConnection()
+    }
+
+    // TLDR: Replaced hardcoded magic numbers sprinkled across CTextBox.maxInValue/minInValue assignments in both
+    //       composable functions. Centralising bounds here means changing a parameter range only requires editing
+    //       one constant; both screens reference it automatically via RemoteControlViewModel.CONSTANT_NAME.
+    companion object {
+        // PID controller parameter bounds
+        const val PID_P_MIN = 0f;       const val PID_P_MAX = 100f
+        const val PID_I_MIN = 0f;       const val PID_I_MAX = 20f
+        const val PID_ILIMIT_MIN = 0f;  const val PID_ILIMIT_MAX = 500f
+        const val PID_WINDUP_MIN = 0f;  const val PID_WINDUP_MAX = 1f
+        const val PID_D_MIN = 0f;       const val PID_D_MAX = 10f
+        const val PID_LPF_MIN = 5f;     const val PID_LPF_MAX = 250f
+        const val PID_GAIN_MIN = 0f;    const val PID_GAIN_MAX = 100f
+        // Machine configuration bounds
+        const val BOILER_TEMP_MIN = 0f;   const val BOILER_TEMP_MAX = 150f
+        const val STEAM_TEMP_MIN = 100f;  const val STEAM_TEMP_MAX = 145f
+        const val PRE_INF_PWR_MIN = 0f;   const val PRE_INF_PWR_MAX = 50f
+        const val PRE_INF_TMR_MIN = 0f;   const val PRE_INF_TMR_MAX = 15f
+        const val INF_PWR_MIN = 0f;       const val INF_PWR_MAX = 100f
+        const val INF_TMR_MIN = 1f;       const val INF_TMR_MAX = 15f
+        const val DECL_PWR_MIN = 70f;     const val DECL_PWR_MAX = 100f
+        const val DECL_TMR_MIN = 0f;      const val DECL_TMR_MAX = 15f
     }
 }

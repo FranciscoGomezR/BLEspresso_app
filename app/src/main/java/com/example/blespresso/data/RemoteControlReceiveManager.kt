@@ -2,6 +2,7 @@ package com.example.blespresso.data
 
 import com.example.blespresso.utilities.Resource
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 // Tutorial 1 -> Youtube: https://www.youtube.com/watch?v=qyG-SDfYNBE&t=422s&ab_channel=KApps
 // Time-Stamp: 24:00
 
@@ -67,6 +68,11 @@ interface RemoteControlReceiveManager
     // Reads all 8 machine UUIDs (boiler target temp + steam setpoint + 6 brew params) in a
     // single GATT-safe sequential queue, replacing the three individual fire-and-forget calls.
     suspend fun rxReadMachineConfiguration()
+
+    // Emits Unit when the machine-config read queue drains completely.
+    val machineConfigReadComplete: SharedFlow<Unit>
+    // Emits Unit when the PID-config read queue drains completely.
+    val pidConfigReadComplete: SharedFlow<Unit>
 
     fun startReceiving()
     fun closeConnection()

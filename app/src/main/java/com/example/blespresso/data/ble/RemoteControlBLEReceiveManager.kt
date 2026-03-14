@@ -21,6 +21,8 @@ import com.example.blespresso.utilities.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -86,6 +88,15 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     private var characteristicToReadQueue = ArrayList<Any>()
     private var characteristicToReadQueueIndex: Int = 0
     private var characteristicToReadFLAG: Boolean = true
+
+    private enum class ActiveReadOperation { NONE, MACHINE_CONFIG, PID_CONFIG }
+    private var activeReadOperation = ActiveReadOperation.NONE
+
+    private val _machineConfigReadComplete = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val machineConfigReadComplete: SharedFlow<Unit> = _machineConfigReadComplete.asSharedFlow()
+
+    private val _pidConfigReadComplete = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val pidConfigReadComplete: SharedFlow<Unit> = _pidConfigReadComplete.asSharedFlow()
 
     override val data: MutableSharedFlow<Resource<BoilerDataResult>> = MutableSharedFlow()
     override val dataToWrite: MutableSharedFlow<Resource<BoilerDataResult>> = MutableSharedFlow()
@@ -240,6 +251,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
             characteristic: BluetoothGattCharacteristic,
             status: Int
         ) {
+            var rxtemperature: Float
             var rxString: String
             var rxPower: Float
             var rxTime: Float
@@ -258,7 +270,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                         rxString = characteristic?.getStringValue(0).toString()
                         Log.d("BLEReceiverManager2", "I have read: $rxString")
                         //Data format received from Bbyte is inLE device
-                        var rxtemperature = (rxString[0].code - 48) * 100.0f
+                        rxtemperature = (rxString[0].code - 48) * 100.0f
                         rxtemperature += (rxString[1].code - 48) * 10.0f
                         rxtemperature += (rxString[2].code - 48) * 1.0f
                         rxtemperature += (rxString[3].code - 48) * 0.1f
@@ -280,7 +292,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                         rxString = characteristic?.getStringValue(0).toString()
                         Log.d("BLEReceiverManager2", "I have read steam setpoint: $rxString")
                         // parse same way as boiler setpoint
-                        var rxtemperature = (rxString[0].code - 48) * 100.0f
+                        rxtemperature = (rxString[0].code - 48) * 100.0f
                         rxtemperature += (rxString[1].code - 48) * 10.0f
                         rxtemperature += (rxString[2].code - 48) * 1.0f
                         rxtemperature += (rxString[3].code - 48) * 0.1f
@@ -484,6 +496,14 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                     if (characteristicToReadQueueIndex == -1) {
                         Log.d("BLEReceiverManager2", "Complete")
                         characteristicToReadFLAG = false
+                        coroutineScope.launch {
+                            when (activeReadOperation) {
+                                ActiveReadOperation.MACHINE_CONFIG -> _machineConfigReadComplete.emit(Unit)
+                                ActiveReadOperation.PID_CONFIG     -> _pidConfigReadComplete.emit(Unit)
+                                ActiveReadOperation.NONE           -> Unit
+                            }
+                            activeReadOperation = ActiveReadOperation.NONE
+                        }
                     }
                     else {
                         Log.d("BLEReceiverManager2", "Read Next CHAR")
@@ -702,6 +722,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     //       boiler target temp → steam setpoint → 6 brew params (pre-infusion, infusion, declining).
     //       Queue is processed tail-to-head via onCharacteristicRead callbacks.
     override suspend fun rxReadMachineConfiguration() {
+        activeReadOperation = ActiveReadOperation.MACHINE_CONFIG
         characteristicToReadFLAG = true
         characteristicToReadQueue.clear()
         // Items are added with the last-to-read at index 0; queue is consumed from the tail.
@@ -729,6 +750,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     }
 
     override suspend fun rxReadPIDConfiguration(){
+        activeReadOperation = ActiveReadOperation.PID_CONFIG
         characteristicToReadFLAG = true
         characteristicToReadQueue.clear()
         val characteristicsPIDToRead = listOf(

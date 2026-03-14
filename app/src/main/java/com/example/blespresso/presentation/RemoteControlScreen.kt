@@ -48,7 +48,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -138,32 +137,19 @@ fun RemoteControlScreen(
 
     var MoveToOtherScreen by remember { mutableStateOf(false) }
 
-    val cBoilerTB = remember { CTextBox() }
-    cBoilerTB.maxInValue = 150.0f
-    cBoilerTB.minInValue = 0.0f
+    // TLDR: Replaced 18 lines of per-field min/max assignments (e.g. cBoilerTB.maxInValue = 150.0f) that scattered
+    //       domain knowledge across the composable. Now bounds are read from RemoteControlViewModel companion object
+    //       constants so both screens share a single source of truth for all parameter ranges.
+    val cBoilerTB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.BOILER_TEMP_MIN; maxInValue = RemoteControlViewModel.BOILER_TEMP_MAX } }
 
-    val cSteamTempTB = remember { CTextBox() }
-    cSteamTempTB.maxInValue = 145.0f
-    cSteamTempTB.minInValue = 100.0f
+    val cSteamTempTB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.STEAM_TEMP_MIN; maxInValue = RemoteControlViewModel.STEAM_TEMP_MAX } }
 
-    var cPreinfusionPWR_TB = remember { CTextBox() }
-    cPreinfusionPWR_TB.maxInValue = 50.0f
-    cPreinfusionPWR_TB.minInValue = 0.0f
-    var cPreinfusionTMR_TB = remember { CTextBox() }
-    cPreinfusionTMR_TB.maxInValue = 15.0f
-    cPreinfusionTMR_TB.minInValue = 0.0f
-    val cInfusionPWR_TB = remember { CTextBox() }
-    cInfusionPWR_TB.maxInValue = 100.0f
-    cInfusionPWR_TB.minInValue = 0.0f
-    val cInfusionTMR_TB  = remember { CTextBox() }
-    cInfusionTMR_TB.maxInValue = 15.0f
-    cInfusionTMR_TB.minInValue = 1.0f
-    val cDeclinPrPWR_TB = remember { CTextBox() }
-    cDeclinPrPWR_TB.maxInValue = 100.0f
-    cDeclinPrPWR_TB.minInValue = 70.0f
-    val cDeclinPrTMR_TB = remember { CTextBox() }
-    cDeclinPrTMR_TB.maxInValue = 15.0f
-    cDeclinPrTMR_TB.minInValue = 0.0f
+    var cPreinfusionPWR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PRE_INF_PWR_MIN; maxInValue = RemoteControlViewModel.PRE_INF_PWR_MAX } }
+    var cPreinfusionTMR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PRE_INF_TMR_MIN; maxInValue = RemoteControlViewModel.PRE_INF_TMR_MAX } }
+    val cInfusionPWR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.INF_PWR_MIN; maxInValue = RemoteControlViewModel.INF_PWR_MAX } }
+    val cInfusionTMR_TB  = remember { CTextBox().apply { minInValue = RemoteControlViewModel.INF_TMR_MIN; maxInValue = RemoteControlViewModel.INF_TMR_MAX } }
+    val cDeclinPrPWR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.DECL_PWR_MIN; maxInValue = RemoteControlViewModel.DECL_PWR_MAX } }
+    val cDeclinPrTMR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.DECL_TMR_MIN; maxInValue = RemoteControlViewModel.DECL_TMR_MAX } }
 
     //Controller Parameter
     val cPterm_TB = remember { CTextBox() }
@@ -243,81 +229,30 @@ fun RemoteControlScreen(
         }
     }
 
-    // MutableState to trigger the long-running task
-    var passTempValModeltoVar by remember { mutableStateOf(false) }
-    LaunchedEffect(passTempValModeltoVar)
-    {
-        delay(500L)
-        cBoilerTB.userInput = TextFieldValue(viewModel.boilerSetpointTemp.toString())
-        cBoilerTB.clickedOnce = false
-        
-        cSteamTempTB.userInput = TextFieldValue(viewModel.steamTempSetpoint.toString())
-        cSteamTempTB.clickedOnce = false
-        
-        passTempValModeltoVar = false
-    }
-    var passRxvalfromBLEtoVar by remember { mutableStateOf(false) }
-    LaunchedEffect(passRxvalfromBLEtoVar)
-    {
-        delay(1500L)
-        Log.d("ScreenBREWconfiguration", "PASS INFO TO TEXTBOX")
-        cPreinfusionPWR_TB.userInput =
-            TextFieldValue(viewModel.brewConfigData.PreInfussionPwr.toString())
-        cPreinfusionPWR_TB.originalValue = viewModel.brewConfigData.PreInfussionPwr.toString()
-        cPreinfusionPWR_TB.modified = false
-        cPreinfusionPWR_TB.clickedOnce = false
-        //-----------------------------------------------------------------------------------------
-        cPreinfusionTMR_TB.userInput =
-            TextFieldValue(viewModel.brewConfigData.PreInfussionTmr.toString())
-        cPreinfusionTMR_TB.originalValue = viewModel.brewConfigData.PreInfussionTmr.toString()
-        cPreinfusionTMR_TB.modified = false
-        cPreinfusionTMR_TB.clickedOnce = false
-        //-----------------------------------------------------------------------------------------
-        cInfusionPWR_TB.userInput =
-            TextFieldValue(viewModel.brewConfigData.InfussionPwr.toString())
-        cInfusionPWR_TB.originalValue = viewModel.brewConfigData.InfussionPwr.toString()
-        cInfusionPWR_TB.modified = false
-        cInfusionPWR_TB.clickedOnce = false
-        //-----------------------------------------------------------------------------------------
-        cInfusionTMR_TB.userInput =
-            TextFieldValue(viewModel.brewConfigData.InfussionTmr.toString())
-        cInfusionTMR_TB.originalValue = viewModel.brewConfigData.InfussionTmr.toString()
-        cInfusionTMR_TB.modified = false
-        cInfusionTMR_TB.clickedOnce = false
-        //-----------------------------------------------------------------------------------------
-        cDeclinPrPWR_TB.userInput =
-            TextFieldValue(viewModel.brewConfigData.DecliningPwr.toString())
-        cDeclinPrPWR_TB.originalValue = viewModel.brewConfigData.DecliningPwr.toString()
-        cDeclinPrPWR_TB.modified = false
-        cDeclinPrPWR_TB.clickedOnce = false
-        //-----------------------------------------------------------------------------------------
-        cDeclinPrTMR_TB.userInput =
-            TextFieldValue(viewModel.brewConfigData.DecliningTmr.toString())
-        cDeclinPrTMR_TB.originalValue = viewModel.brewConfigData.DecliningTmr.toString()
-        cDeclinPrTMR_TB.modified = false
-        cDeclinPrTMR_TB.clickedOnce = false
-
-        // Reset the flag
-        passRxvalfromBLEtoVar = false
-    }
-
-    // Auto-load all 8 machine UUIDs when connection is established
-    LaunchedEffect(bleConnectionState) {
-        if (bleConnectionState == ConnectionState.Connected && !viewModel.hasAutoLoadedBrewConfig) {
-            Log.d("ScreenBREWconfiguration", "Auto-loading machine configuration on connection")
-            viewModel.rxReadMachineConfiguration()
-            passRxvalfromBLEtoVar = true
-            passTempValModeltoVar = true
-            viewModel.hasAutoLoadedBrewConfig = true
-        } else if (bleConnectionState != ConnectionState.Connected) {
-            viewModel.hasAutoLoadedBrewConfig = false // Reset for next connection
+    // TLDR: Replaced two separate LaunchedEffect blocks driven by boolean flags (passTempValModeltoVar delay(500L)
+    //       and passRxvalfromBLEtoVar delay(1500L)) plus a LaunchedEffect(bleConnectionState) auto-load block and
+    //       a DisposableEffect that reset the flag on dispose — 4 separate side-effects in the composable.
+    //       Now a single collector reacts to the machineConfigLoaded SharedFlow emitted by the ViewModel when data
+    //       is ready. CTextBox.loadValue() replaces the 4-property manual assignment per field.
+    LaunchedEffect(Unit) {
+        viewModel.machineConfigLoaded.collect {
+            Log.d("ScreenBREWconfiguration", "PASS INFO TO TEXTBOX")
+            cBoilerTB.loadValue(viewModel.boilerSetpointTemp.toString())
+            cSteamTempTB.loadValue(viewModel.steamTempSetpoint.toString())
+            cPreinfusionPWR_TB.loadValue(viewModel.brewConfigData.PreInfussionPwr.toString())
+            cPreinfusionTMR_TB.loadValue(viewModel.brewConfigData.PreInfussionTmr.toString())
+            cInfusionPWR_TB.loadValue(viewModel.brewConfigData.InfussionPwr.toString())
+            cInfusionTMR_TB.loadValue(viewModel.brewConfigData.InfussionTmr.toString())
+            cDeclinPrPWR_TB.loadValue(viewModel.brewConfigData.DecliningPwr.toString())
+            cDeclinPrTMR_TB.loadValue(viewModel.brewConfigData.DecliningTmr.toString())
         }
     }
 
-    // Reset the auto-load flag when the composable is disposed (user navigates away)
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.hasAutoLoadedBrewConfig = false
+    // When the BLE device becomes Connected, request machine configuration automatically.
+    // Mirrors the PID auto-load pattern in BlespressoCtrlParamScreen.
+    LaunchedEffect(bleConnectionState) {
+        if (bleConnectionState == ConnectionState.Connected) {
+            viewModel.rxReadMachineConfiguration()
         }
     }
 
@@ -385,7 +320,7 @@ fun RemoteControlScreen(
                     )
                 }
             }
-        } else if (bleConnectionState == ConnectionState.Connected) {
+        } else {
             var isFocused by remember { mutableStateOf(false) }
 
             // Get the software keyboard controller
@@ -493,30 +428,35 @@ fun RemoteControlScreen(
                                 modifier = Modifier.weight(2f).padding(top = 2.dp),
                                 horizontalAlignment = Alignment. CenterHorizontally
                             ) {
+                                // TLDR: Replaced processTextFieldInput(newText, cXxx_TB) global function calls with
+                                //       cXxx_TB.onValueChange(newText) and processKeyboardDoneEvent(cXxx_TB) with
+                                //       cXxx_TB.onDone() across all BasicTextFields on this screen.
+                                //       The logic was moved into CTextBox methods so it lives with the data it
+                                //       operates on, and the global helper functions in RemoteControlScreen.kt were removed.
                                 BasicTextField(
                                     value = cBoilerTB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cBoilerTB) },
+                                        cBoilerTB.onValueChange(newText) },
                                     cursorBrush = SolidColor(Unspecified),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically)
                                                         .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cBoilerTB)
+                                        cBoilerTB.onDone()
                                         keyboardController?.hide() })
                                 )
                                 BasicTextField(
                                     value = cSteamTempTB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cSteamTempTB) },
+                                        cSteamTempTB.onValueChange(newText) },
                                     cursorBrush = SolidColor(Unspecified),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically)
                                         .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cSteamTempTB)
+                                        cSteamTempTB.onDone()
                                         keyboardController?.hide() })
                                 )
                             }
@@ -603,85 +543,87 @@ fun RemoteControlScreen(
                                 modifier = Modifier.weight(2f).padding(top = 2.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
+                                // TLDR: Same onValueChange/onDone pattern as the boiler text fields above.
+                                //       Applies to all 6 brew-config fields in this column.
                                 BasicTextField(// Pre Infusion POWER INPUT
                                     value = cPreinfusionPWR_TB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cPreinfusionPWR_TB) },
+                                        cPreinfusionPWR_TB.onValueChange(newText) },
                                     cursorBrush = SolidColor(accent),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cPreinfusionPWR_TB)
+                                        cPreinfusionPWR_TB.onDone()
                                         keyboardController?.hide() })
                                 )
                                 BasicTextField( // Pre Infusion TIMER INPUT
                                     value = cPreinfusionTMR_TB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cPreinfusionTMR_TB)
+                                        cPreinfusionTMR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cPreinfusionTMR_TB)
+                                        cPreinfusionTMR_TB.onDone()
                                         keyboardController?.hide()
                                     })
                                 )
                                 BasicTextField( //Infusion POWER INPUT
                                     value = cInfusionPWR_TB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cInfusionPWR_TB)
+                                        cInfusionPWR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cInfusionPWR_TB)
+                                        cInfusionPWR_TB.onDone()
                                         keyboardController?.hide()
                                     })
                                 )
                                 BasicTextField( // Infusion TIMER INPUT
                                     value = cInfusionTMR_TB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cInfusionTMR_TB)
+                                        cInfusionTMR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cInfusionTMR_TB)
+                                        cInfusionTMR_TB.onDone()
                                         keyboardController?.hide()
                                     })
                                 )
                                 BasicTextField( //  Declining Pressure POWER INPUT
                                     value = cDeclinPrPWR_TB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cDeclinPrPWR_TB)
+                                        cDeclinPrPWR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cDeclinPrPWR_TB)
+                                        cDeclinPrPWR_TB.onDone()
                                         keyboardController?.hide()
                                     })
                                 )
                                 BasicTextField( // Declining Pressure TIME INPUT
                                     value = cDeclinPrTMR_TB.userInput,
                                     onValueChange = { newText ->
-                                        processTextFieldInput(newText, cDeclinPrTMR_TB)
+                                        cDeclinPrTMR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        processKeyboardDoneEvent(cDeclinPrTMR_TB)
+                                        cDeclinPrTMR_TB.onDone()
                                         keyboardController?.hide()
                                     })
                                 )
@@ -732,12 +674,14 @@ fun RemoteControlScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Button(
+                                    // TLDR: Removed passTempValModeltoVar = true and passRxvalfromBLEtoVar = true assignments.
+                                    //       Previously those flags triggered two separate LaunchedEffects to delay and copy
+                                    //       BLE data into text fields. Now rxReadMachineConfiguration() handles the delay
+                                    //       and emits machineConfigLoaded when data is ready.
                                     onClick = {
                                         keyboardController?.hide()      // Hide the keyboard when the button is clicked
                                         /* Handle button click → READ all 8 machine UUIDs via single GATT-safe queue */
                                         Toast.makeText(context, "Reading Machine configuration", Toast.LENGTH_SHORT).show()
-                                        passTempValModeltoVar = true
-                                        passRxvalfromBLEtoVar = true
                                         viewModel.rxReadMachineConfiguration()
                                         Log.d("ScreenBREWconfiguration", "Read configuration Button PRESSED")
                                     },
@@ -778,68 +722,28 @@ fun RemoteControlScreen(
                                                     Toast.makeText(context, "click", Toast.LENGTH_SHORT).show()
                                                 },
                                                 onDoubleTap = {
+                                                    // TLDR: Replaced a 50-line block that checked modified && isNotBlank()
+                                                    //       for each of the 8 machine-config fields, called the matching
+                                                    //       txWrite*() function directly, and reset the flag inline.
+                                                    //       Moved all that orchestration to ViewModel.writeMachineConfig().
+                                                    //       Unmodified fields are passed as null (skipped); the composable
+                                                    //       only clears modified flags and shows the toast after the call.
                                                     /* Handle button click → WRITE Brew & Temperature Configuration */
                                                     keyboardController?.hide()
-                                                    var anyModified = false
-                                                    // TLDR: Write boiler target temperature if user changed it
-                                                    if (cBoilerTB.modified && cBoilerTB.userInput.text.isNotBlank()) {
-                                                        viewModel.txNewBoilerTargetTemp(cBoilerTB.userInput.text.toFloat())
-                                                        Log.d("RemoteControlScreen", "Brew Temperature: ${cBoilerTB.userInput.text} -> Saved")
-                                                        cBoilerTB.modified = false
-                                                        anyModified = true
-                                                    }
-                                                    // TLDR: Write steam temperature setpoint if user changed it
-                                                    if (cSteamTempTB.modified && cSteamTempTB.userInput.text.isNotBlank()) {
-                                                        viewModel.txNewSteamTempSetpoint(cSteamTempTB.userInput.text.toFloat())
-                                                        Log.d("RemoteControlScreen", "Steam Temperature: ${cSteamTempTB.userInput.text} -> Saved")
-                                                        cSteamTempTB.modified = false
-                                                        anyModified = true
-                                                    }
-                                                    // TLDR: Write pre-infusion pump power % if user changed it
-                                                    if (cPreinfusionPWR_TB.modified && cPreinfusionPWR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txWritePreInfusionPwr(cPreinfusionPWR_TB.userInput.text.toFloat())
-                                                        Log.d("RemoteControlScreen", "Pre-Infusion Power: ${cPreinfusionPWR_TB.userInput.text} -> Saved")
-                                                        cPreinfusionPWR_TB.modified = false
-                                                        anyModified = true
-                                                    }
-                                                    // TLDR: Write pre-infusion phase duration (sec) if user changed it
-                                                    if (cPreinfusionTMR_TB.modified && cPreinfusionTMR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txWritePreInfusionTmr(cPreinfusionTMR_TB.userInput.text.toFloat())
-                                                        Log.d("RemoteControlScreen", "Pre-Infusion Duration: ${cPreinfusionTMR_TB.userInput.text} sec -> Saved")
-                                                        cPreinfusionTMR_TB.modified = false
-                                                        anyModified = true
-                                                    }
-                                                    // TLDR: Write full infusion pump power % if user changed it
-                                                    if (cInfusionPWR_TB.modified && cInfusionPWR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txWriteInfusionPwr(cInfusionPWR_TB.userInput.text.toFloat())
-                                                        Log.d("RemoteControlScreen", "Infusion Power: ${cInfusionPWR_TB.userInput.text} -> Saved")
-                                                        cInfusionPWR_TB.modified = false
-                                                        anyModified = true
-                                                    }
-                                                    // TLDR: Write full infusion phase duration (sec) if user changed it
-                                                    if (cInfusionTMR_TB.modified && cInfusionTMR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txWriteInfusionTmr(cInfusionTMR_TB.userInput.text.toFloat())
-                                                        Log.d("RemoteControlScreen", "Infusion Duration: ${cInfusionTMR_TB.userInput.text} sec -> Saved")
-                                                        cInfusionTMR_TB.modified = false
-                                                        anyModified = true
-                                                    }
-                                                    // TLDR: Write declining pressure pump power % if user changed it
-                                                    if (cDeclinPrPWR_TB.modified && cDeclinPrPWR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txWriteDecliningPwr(cDeclinPrPWR_TB.userInput.text.toFloat())
-                                                        Log.d("RemoteControlScreen", "Declining Pressure Power: ${cDeclinPrPWR_TB.userInput.text} -> Saved")
-                                                        cDeclinPrPWR_TB.modified = false
-                                                        anyModified = true
-                                                    }
-                                                    // TLDR: Write declining pressure phase duration (sec) if user changed it
-                                                    if (cDeclinPrTMR_TB.modified && cDeclinPrTMR_TB.userInput.text.isNotBlank()) {
-                                                        viewModel.txWriteDecliningTmr(cDeclinPrTMR_TB.userInput.text.toFloat())
-                                                        Log.d("RemoteControlScreen", "Declining Pressure Duration: ${cDeclinPrTMR_TB.userInput.text} sec -> Saved")
-                                                        cDeclinPrTMR_TB.modified = false
-                                                        anyModified = true
-                                                    }
-
-                                                    // TLDR: Show confirmation toast if any field was written, otherwise notify user nothing changed
+                                                    val anyModified = viewModel.writeMachineConfig(
+                                                        boilerTemp = if (cBoilerTB.modified         && cBoilerTB.userInput.text.isNotBlank())         cBoilerTB.userInput.text.toFloat()         else null,
+                                                        steamTemp  = if (cSteamTempTB.modified       && cSteamTempTB.userInput.text.isNotBlank())       cSteamTempTB.userInput.text.toFloat()       else null,
+                                                        preInfPwr  = if (cPreinfusionPWR_TB.modified  && cPreinfusionPWR_TB.userInput.text.isNotBlank())  cPreinfusionPWR_TB.userInput.text.toFloat()  else null,
+                                                        preInfTmr  = if (cPreinfusionTMR_TB.modified  && cPreinfusionTMR_TB.userInput.text.isNotBlank())  cPreinfusionTMR_TB.userInput.text.toFloat()  else null,
+                                                        infPwr     = if (cInfusionPWR_TB.modified     && cInfusionPWR_TB.userInput.text.isNotBlank())     cInfusionPWR_TB.userInput.text.toFloat()     else null,
+                                                        infTmr     = if (cInfusionTMR_TB.modified     && cInfusionTMR_TB.userInput.text.isNotBlank())     cInfusionTMR_TB.userInput.text.toFloat()     else null,
+                                                        declPwr    = if (cDeclinPrPWR_TB.modified     && cDeclinPrPWR_TB.userInput.text.isNotBlank())     cDeclinPrPWR_TB.userInput.text.toFloat()     else null,
+                                                        declTmr    = if (cDeclinPrTMR_TB.modified     && cDeclinPrTMR_TB.userInput.text.isNotBlank())     cDeclinPrTMR_TB.userInput.text.toFloat()     else null,
+                                                    )
                                                     if (anyModified) {
+                                                        listOf(cBoilerTB, cSteamTempTB, cPreinfusionPWR_TB, cPreinfusionTMR_TB,
+                                                               cInfusionPWR_TB, cInfusionTMR_TB, cDeclinPrPWR_TB, cDeclinPrTMR_TB
+                                                        ).forEach { it.modified = false }
                                                         Toast.makeText(context, "Sending modified configuration", Toast.LENGTH_LONG).show()
                                                     } else {
                                                         Toast.makeText(context, "No fields have been modified", Toast.LENGTH_SHORT).show()
@@ -906,71 +810,8 @@ fun RemoteControlScreen(
                 }
             }
             // video 1-> Time-Stamp: 1:25:10
-        } else if (bleConnectionState == ConnectionState.Disconnected) {
-            Button(onClick = {
-                viewModel.initiazeConnection()
-            }) {
-                Text(
-                    text = "Initialize again"
-                )
-            }
         }
-
     }
 
 }
-
-fun processTextFieldInput(newText: TextFieldValue, cTextfield: CTextBox) {
-    if (newText.text.isNullOrBlank()) {
-        cTextfield.userInput = TextFieldValue("0.0")
-        cTextfield.modified = cTextfield.originalValue != "0.0"
-    } else {
-        if (!cTextfield.clickedOnce) {
-            cTextfield.userInput = TextFieldValue() // Clear the text on the first click
-            cTextfield.clickedOnce = true // Set the flag to true
-        } else {
-            //previously the code to control max & min values was here
-            //code section moved to the next fnc
-            if (newText.text.all { it.isDigit() || it == '.' }) {
-                val numericValue = newText.text.toFloatOrNull()
-                if (numericValue != null) {
-                    cTextfield.userInput = newText
-                    // Set modified flag if the value differs from original
-                    cTextfield.modified = newText.text != cTextfield.originalValue
-                } else {
-                    cTextfield.userInput = TextFieldValue("0.0")
-                    cTextfield.clickedOnce = false
-                    cTextfield.modified = cTextfield.originalValue != "0.0"
-                }
-            }
-        }
-    }
-}
-
-fun processKeyboardDoneEvent(cTextfield: CTextBox)
-{
-    cTextfield.clickedOnce = false
-    if(cTextfield.userInput.text.isNullOrBlank())
-    {
-        cTextfield.userInput = TextFieldValue("0.0")
-        cTextfield.modified = cTextfield.originalValue != "0.0"
-    }else{
-        if (cTextfield.userInput.text.all { it.isDigit() || it == '.' }) {
-            val numericValue = cTextfield.userInput.text.toFloatOrNull()
-            if (numericValue != null &&  numericValue>cTextfield.maxInValue)
-            {
-                cTextfield.userInput = TextFieldValue(cTextfield.maxInValue.toString())
-                cTextfield.modified = cTextfield.maxInValue.toString() != cTextfield.originalValue
-            } else if(numericValue != null && numericValue < cTextfield.minInValue)
-            {
-                cTextfield.userInput = TextFieldValue(cTextfield.minInValue.toString())
-                cTextfield.modified = cTextfield.minInValue.toString() != cTextfield.originalValue
-            } else{
-                cTextfield.modified = cTextfield.userInput.text != cTextfield.originalValue
-            }
-        }
-    }
-}
-
-
 

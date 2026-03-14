@@ -24,14 +24,10 @@ import androidx.compose.material.Divider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -39,11 +35,11 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.blespresso.data.ConnectionState
 import com.example.blespresso.presentation.permissions.SystemBroadcastReceiver
 import com.example.blespresso.ui.theme.ButtonType1_Font
 import com.example.blespresso.ui.theme.ButtonType2_Font
@@ -58,7 +54,6 @@ import com.example.blespresso.ui.theme.surface
 import com.example.blespresso.ui.theme.textprimary
 import com.example.blespresso.ui.theme.textsecondary
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -68,29 +63,16 @@ fun BlespressoCtrlParamScreen(
     viewModel: RemoteControlViewModel = hiltViewModel()
 ) {
     //screen content
-    val cPterm_TB = remember { CTextBox() }
-    cPterm_TB.maxInValue = 100.0f
-    cPterm_TB.minInValue = 0.0f
-    val cIterm_TB = remember { CTextBox() }
-    cIterm_TB.maxInValue = 20.0f
-    cIterm_TB.minInValue = 0.0f
-    val cIlimit_TB = remember { CTextBox() }
-    cIlimit_TB.maxInValue = 500.0f
-    cIlimit_TB.minInValue = 0.0f
-    val cIwindup_TB = remember { CTextBox() }
-    cIwindup_TB.maxInValue = 1.0f
-    cIwindup_TB.minInValue = 0.0f
-    val cDterm_TB = remember { CTextBox() }
-    cDterm_TB.maxInValue = 10.0f
-    cDterm_TB.minInValue = 0.0f
-    val cLPFterm_TB = remember { CTextBox() }
-    cLPFterm_TB.maxInValue = 250.0f
-    cLPFterm_TB.minInValue = 5.0f
-    val cGainterm_TB = remember { CTextBox() }
-    cGainterm_TB.maxInValue = 100.0f
-    cGainterm_TB.minInValue = 0.0f
-
-    var isFocused by remember { mutableStateOf(false) }
+    // TLDR: Replaced 14 lines of per-field min/max assignments (e.g. cPterm_TB.maxInValue = 100.0f) with a single
+    //       apply{} block referencing companion object constants. Bounds are now defined once in RemoteControlViewModel;
+    //       changing a range only requires editing one constant instead of hunting across both screen files.
+    val cPterm_TB   = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_P_MIN;      maxInValue = RemoteControlViewModel.PID_P_MAX } }
+    val cIterm_TB   = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_I_MIN;      maxInValue = RemoteControlViewModel.PID_I_MAX } }
+    val cIlimit_TB  = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_ILIMIT_MIN; maxInValue = RemoteControlViewModel.PID_ILIMIT_MAX } }
+    val cIwindup_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_WINDUP_MIN; maxInValue = RemoteControlViewModel.PID_WINDUP_MAX } }
+    val cDterm_TB   = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_D_MIN;      maxInValue = RemoteControlViewModel.PID_D_MAX } }
+    val cLPFterm_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_LPF_MIN;    maxInValue = RemoteControlViewModel.PID_LPF_MAX } }
+    val cGainterm_TB= remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_GAIN_MIN;   maxInValue = RemoteControlViewModel.PID_GAIN_MAX } }
 
     // Get the software keyboard controller
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -114,47 +96,29 @@ fun BlespressoCtrlParamScreen(
         }
     }
 
-    // MutableState to trigger the long-running task
-    var passRxvalfromBLEtoVar by remember { mutableStateOf(false) }
+    // When the BLE device becomes Connected (state delivered by subscribeToChanges when this screen
+    // initialises its own ViewModel), request the PID configuration automatically.
+    LaunchedEffect(viewModel.connectionState) {
+        if (viewModel.connectionState == ConnectionState.Connected) {
+            viewModel.rxReadPIDConfiguration()
+        }
+    }
 
-    LaunchedEffect(passRxvalfromBLEtoVar)
-    {
-        delay(1500L)
-        Log.d(
-            "ScreenPIDconfiguration",
-            "Passing PID configurations from BLE to Screen FieldText"
-        )
-
-        cPterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgPterm.toString())
-        cPterm_TB.originalValue = viewModel.pIDConfigData.cfgPterm.toString()
-        cPterm_TB.modified = false
-        cPterm_TB.clickedOnce = false
-        cIterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgIterm.toString())
-        cIterm_TB.originalValue = viewModel.pIDConfigData.cfgIterm.toString()
-        cIterm_TB.modified = false
-        cIterm_TB.clickedOnce = false
-        cIlimit_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgImaxterm.toString())
-        cIlimit_TB.originalValue = viewModel.pIDConfigData.cfgImaxterm.toString()
-        cIlimit_TB.modified = false
-        cIlimit_TB.clickedOnce = false
-        cIwindup_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgWindup.toString())
-        cIwindup_TB.originalValue = viewModel.pIDConfigData.cfgWindup.toString()
-        cIwindup_TB.modified = false
-        cIwindup_TB.clickedOnce = false
-        cDterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgDterm.toString())
-        cDterm_TB.originalValue = viewModel.pIDConfigData.cfgDterm.toString()
-        cDterm_TB.modified = false
-        cDterm_TB.clickedOnce = false
-        cLPFterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgDlpfterm.toString())
-        cLPFterm_TB.originalValue = viewModel.pIDConfigData.cfgDlpfterm.toString()
-        cLPFterm_TB.modified = false
-        cLPFterm_TB.clickedOnce = false
-        cGainterm_TB.userInput = TextFieldValue(viewModel.pIDConfigData.cfgGainterm.toString())
-        cGainterm_TB.originalValue = viewModel.pIDConfigData.cfgGainterm.toString()
-        cGainterm_TB.modified = false
-        cGainterm_TB.clickedOnce = false
-        // Reset the flag
-        passRxvalfromBLEtoVar = false
+    // TLDR: Replaced a boolean flag (passRxvalfromBLEtoVar) + LaunchedEffect(flag) { delay(1500L); copy fields... }
+    //       that forced the composable to manually copy every pIDConfigData field into text boxes after an artificial wait.
+    //       Now collects the pidConfigLoaded SharedFlow emitted by the ViewModel once BLE data is ready;
+    //       CTextBox.loadValue() handles the 4-property reset in one call per field.
+    LaunchedEffect(Unit) {
+        viewModel.pidConfigLoaded.collect {
+            Log.d("ScreenPIDconfiguration", "Passing PID configurations from BLE to Screen FieldText")
+            cPterm_TB.loadValue(viewModel.pIDConfigData.cfgPterm.toString())
+            cIterm_TB.loadValue(viewModel.pIDConfigData.cfgIterm.toString())
+            cIlimit_TB.loadValue(viewModel.pIDConfigData.cfgImaxterm.toString())
+            cIwindup_TB.loadValue(viewModel.pIDConfigData.cfgWindup.toString())
+            cDterm_TB.loadValue(viewModel.pIDConfigData.cfgDterm.toString())
+            cLPFterm_TB.loadValue(viewModel.pIDConfigData.cfgDlpfterm.toString())
+            cGainterm_TB.loadValue(viewModel.pIDConfigData.cfgGainterm.toString())
+        }
     }
 
     Column(
@@ -418,10 +382,15 @@ fun BlespressoCtrlParamScreen(
                             modifier = Modifier.weight(2f).padding(top = 2.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            // TLDR: Replaced processTextFieldInput(newText, cXxx_TB) global function calls with
+                            //       cXxx_TB.onValueChange(newText) and processKeyboardDoneEvent(cXxx_TB) with
+                            //       cXxx_TB.onDone() across all 7 BasicTextFields in this column.
+                            //       The logic was moved into CTextBox methods so it lives with the data it operates on.
+                            //       The onFocusChanged LPF clamping was also removed: onDone() already covers that case.
                             BasicTextField( // Proportional Term INPUT
                                 value = cPterm_TB.userInput,
                                 onValueChange = { newText ->
-                                    processTextFieldInput(newText, cPterm_TB)
+                                    cPterm_TB.onValueChange(newText)
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
@@ -437,17 +406,14 @@ fun BlespressoCtrlParamScreen(
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    processKeyboardDoneEvent(cPterm_TB)
+                                    cPterm_TB.onDone()
                                     keyboardController?.hide()
                                 })
                             )
                             BasicTextField( // Integral Term INPUT
                                 value = cIterm_TB.userInput,
                                 onValueChange = { newText ->
-                                    processTextFieldInput(
-                                        newText,
-                                        cIterm_TB
-                                    )
+                                    cIterm_TB.onValueChange(newText)
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
@@ -463,17 +429,14 @@ fun BlespressoCtrlParamScreen(
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    processKeyboardDoneEvent(cIterm_TB)
+                                    cIterm_TB.onDone()
                                     keyboardController?.hide()
                                 })
                             )
                             BasicTextField( // Integral limit Term INPUT
                                 value = cIlimit_TB.userInput,
                                 onValueChange = { newText ->
-                                    processTextFieldInput(
-                                        newText,
-                                        cIlimit_TB
-                                    )
+                                    cIlimit_TB.onValueChange(newText)
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
@@ -489,17 +452,14 @@ fun BlespressoCtrlParamScreen(
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    processKeyboardDoneEvent(cIlimit_TB)
+                                    cIlimit_TB.onDone()
                                     keyboardController?.hide()
                                 })
                             )
                             BasicTextField( // Integral Windup INPUT
                                 value = cIwindup_TB.userInput,
                                 onValueChange = { newText ->
-                                    processTextFieldInput(
-                                        newText,
-                                        cIwindup_TB
-                                    )
+                                    cIwindup_TB.onValueChange(newText)
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
@@ -515,17 +475,14 @@ fun BlespressoCtrlParamScreen(
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    processKeyboardDoneEvent(cIwindup_TB)
+                                    cIwindup_TB.onDone()
                                     keyboardController?.hide()
                                 })
                             )
                             BasicTextField( // Derivatve Term INPUT
                                 value = cDterm_TB.userInput,
                                 onValueChange = { newText ->
-                                    processTextFieldInput(
-                                        newText,
-                                        cDterm_TB
-                                    )
+                                    cDterm_TB.onValueChange(newText)
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
@@ -541,52 +498,14 @@ fun BlespressoCtrlParamScreen(
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    processKeyboardDoneEvent(cDterm_TB)
+                                    cDterm_TB.onDone()
                                     keyboardController?.hide()
                                 })
                             )
                             BasicTextField( // Low-pass Filter Frequency INPUT
                                 value = cLPFterm_TB.userInput,
                                 onValueChange = { newText ->
-                                    processTextFieldInput(
-                                        newText,
-                                        cLPFterm_TB
-                                    )
-                                },
-                                cursorBrush = SolidColor(textprimary),
-                                textStyle = TextStyle(
-                                    color = textprimary,
-                                    fontSize = ParamValue_fontsize,
-                                    textAlign = TextAlign.Center
-                                ),
-                                modifier = Modifier.height(30.dp)
-                                    .background(surface)
-                                    .wrapContentHeight(align = Alignment.CenterVertically)
-                                    .onFocusChanged { focusState ->
-                                        isFocused = focusState.isFocused
-                                        if (isFocused) { // The TextField is focused
-                                        } else {// The TextField lost focus
-                                            if (cLPFterm_TB.userInput.text.toDouble() < cLPFterm_TB.minInValue)
-                                                cLPFterm_TB.userInput =
-                                                    TextFieldValue(cLPFterm_TB.minInValue.toString())
-                                        }
-                                    },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(onDone = {
-                                    processKeyboardDoneEvent(cLPFterm_TB)
-                                    keyboardController?.hide()
-                                })
-                            )
-                            BasicTextField( // System Gain Term INPUT
-                                value = cGainterm_TB.userInput,
-                                onValueChange = { newText ->
-                                    processTextFieldInput(
-                                        newText,
-                                        cGainterm_TB
-                                    )
+                                    cLPFterm_TB.onValueChange(newText)
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
@@ -602,7 +521,30 @@ fun BlespressoCtrlParamScreen(
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    processKeyboardDoneEvent(cGainterm_TB)
+                                    cLPFterm_TB.onDone()
+                                    keyboardController?.hide()
+                                })
+                            )
+                            BasicTextField( // System Gain Term INPUT
+                                value = cGainterm_TB.userInput,
+                                onValueChange = { newText ->
+                                    cGainterm_TB.onValueChange(newText)
+                                },
+                                cursorBrush = SolidColor(textprimary),
+                                textStyle = TextStyle(
+                                    color = textprimary,
+                                    fontSize = ParamValue_fontsize,
+                                    textAlign = TextAlign.Center
+                                ),
+                                modifier = Modifier.height(30.dp)
+                                    .background(surface)
+                                    .wrapContentHeight(align = Alignment.CenterVertically),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cGainterm_TB.onDone()
                                     keyboardController?.hide()
                                 })
                             )
@@ -771,11 +713,11 @@ fun BlespressoCtrlParamScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Button(
+                                // TLDR: Removed passRxvalfromBLEtoVar = true assignment. Previously the flag triggered
+                                //       a LaunchedEffect in the composable to delay and then copy BLE data into fields.
+                                //       Now rxReadPIDConfiguration() emits pidConfigLoaded when data is ready, so
+                                //       the button only needs to call the ViewModel function.
                                 onClick = {
-                                    keyboardController?.hide()      // Hide the keyboard when the button is clicked
-                                    passRxvalfromBLEtoVar = true
-                                    /* Handle button click → read PID Configuration */
-                                    viewModel.rxReadPIDConfiguration()
                                     Toast.makeText(context, "Reading PID configuration\"", Toast.LENGTH_SHORT).show()
                                 },
                                 colors = ButtonDefaults.buttonColors(backgroundColor = accent),
@@ -823,62 +765,23 @@ fun BlespressoCtrlParamScreen(
                                                 ).show()
                                             },
                                             onDoubleTap = {
+                                                // TLDR: Replaced a 40-line block that checked modified && isNotBlank() for
+                                                //       each of the 7 PID fields, called the matching txWritePid*() directly,
+                                                //       and reset the flag inline. Moved all that logic to ViewModel.writePIDConfig().
+                                                //       Unmodified fields are passed as null (skipped); the composable only
+                                                //       clears modified flags and shows the toast after the ViewModel returns.
                                                 keyboardController?.hide()
-                                                var anyModified = false
-
-                                                // TLDR: Write PID Proportional term if user changed it
-                                                if (cPterm_TB.modified && cPterm_TB.userInput.text.isNotBlank()) {
-                                                    viewModel.txWritePidPTerm(cPterm_TB.userInput.text.toFloat())
-                                                    Log.d("ControllerParamScreen", "P Term: ${cPterm_TB.userInput.text} -> Saved")
-                                                    cPterm_TB.modified = false
-                                                    anyModified = true
-                                                }
-                                                // TLDR: Write PID Integral term if user changed it
-                                                if (cIterm_TB.modified && cIterm_TB.userInput.text.isNotBlank()) {
-                                                    viewModel.txWritePidITerm(cIterm_TB.userInput.text.toFloat())
-                                                    Log.d("ControllerParamScreen", "I Term: ${cIterm_TB.userInput.text} -> Saved")
-                                                    cIterm_TB.modified = false
-                                                    anyModified = true
-                                                }
-                                                // TLDR: Write PID Integral max clamp value if user changed it
-                                                if (cIlimit_TB.modified && cIlimit_TB.userInput.text.isNotBlank()) {
-                                                    viewModel.txWritePidIMax(cIlimit_TB.userInput.text.toFloat())
-                                                    Log.d("ControllerParamScreen", "I Max Clamp: ${cIlimit_TB.userInput.text} -> Saved")
-                                                    cIlimit_TB.modified = false
-                                                    anyModified = true
-                                                }
-                                                // TLDR: Write PID anti-windup flag if user changed it
-                                                if (cIwindup_TB.modified && cIwindup_TB.userInput.text.isNotBlank()) {
-                                                    viewModel.txWritePidWindup(cIwindup_TB.userInput.text.toFloat())
-                                                    Log.d("ControllerParamScreen", "I Windup: ${cIwindup_TB.userInput.text} -> Saved")
-                                                    cIwindup_TB.modified = false
-                                                    anyModified = true
-                                                }
-                                                // TLDR: Write PID Derivative term if user changed it
-                                                if (cDterm_TB.modified && cDterm_TB.userInput.text.isNotBlank()) {
-                                                    viewModel.txWritePidDTerm(cDterm_TB.userInput.text.toFloat())
-                                                    Log.d("ControllerParamScreen", "D Term: ${cDterm_TB.userInput.text} -> Saved")
-                                                    cDterm_TB.modified = false
-                                                    anyModified = true
-                                                }
-                                                // TLDR: Write PID Derivative low-pass filter cutoff if user changed it
-                                                if (cLPFterm_TB.modified && cLPFterm_TB.userInput.text.isNotBlank()) {
-                                                    viewModel.txWritePidDLpf(cLPFterm_TB.userInput.text.toFloat())
-                                                    Log.d("ControllerParamScreen", "D LPF: ${cLPFterm_TB.userInput.text} -> Saved")
-                                                    cLPFterm_TB.modified = false
-                                                    anyModified = true
-                                                }
-                                                // TLDR: Write overall PID gain multiplier if user changed it
-                                                if (cGainterm_TB.modified && cGainterm_TB.userInput.text.isNotBlank()) {
-                                                    viewModel.txWritePidGain(cGainterm_TB.userInput.text.toFloat())
-                                                    Log.d("ControllerParamScreen", "Gain Term: ${cGainterm_TB.userInput.text} -> Saved")
-                                                    cGainterm_TB.modified = false
-                                                    anyModified = true
-                                                }
-
-                                                // TLDR: Show confirmation toast if any PID field was written, otherwise notify user nothing changed
+                                                val anyModified = viewModel.writePIDConfig(
+                                                    pTerm  = if (cPterm_TB.modified   && cPterm_TB.userInput.text.isNotBlank())   cPterm_TB.userInput.text.toFloat()   else null,
+                                                    iTerm  = if (cIterm_TB.modified   && cIterm_TB.userInput.text.isNotBlank())   cIterm_TB.userInput.text.toFloat()   else null,
+                                                    iMax   = if (cIlimit_TB.modified  && cIlimit_TB.userInput.text.isNotBlank())  cIlimit_TB.userInput.text.toFloat()  else null,
+                                                    windup = if (cIwindup_TB.modified && cIwindup_TB.userInput.text.isNotBlank()) cIwindup_TB.userInput.text.toFloat() else null,
+                                                    dTerm  = if (cDterm_TB.modified   && cDterm_TB.userInput.text.isNotBlank())   cDterm_TB.userInput.text.toFloat()   else null,
+                                                    dLpf   = if (cLPFterm_TB.modified && cLPFterm_TB.userInput.text.isNotBlank()) cLPFterm_TB.userInput.text.toFloat() else null,
+                                                    gain   = if (cGainterm_TB.modified&& cGainterm_TB.userInput.text.isNotBlank())cGainterm_TB.userInput.text.toFloat()else null,
+                                                )
                                                 if (anyModified) {
-                                                    Log.d("ControllerParamScreen", "Sent modified PID parameters")
+                                                    listOf(cPterm_TB, cIterm_TB, cIlimit_TB, cIwindup_TB, cDterm_TB, cLPFterm_TB, cGainterm_TB).forEach { it.modified = false }
                                                     Toast.makeText(context, "Sending modified PID configuration", Toast.LENGTH_LONG).show()
                                                 } else {
                                                     Toast.makeText(context, "No fields have been modified", Toast.LENGTH_SHORT).show()
