@@ -1,0 +1,29 @@
+flowchart LR
+    subgraph android["⚙️ Android Platform"]
+        direction LR
+        LAUNCH["App launch\nMainActivity.onCreate"]
+    end
+
+    subgraph navhost["🧭 Navigation — NavHost"]
+        direction LR
+        NH["NavHost\nstartDestination: start_screen"]
+    end
+
+    subgraph startscreen["🟢 StartScreen Composable"]
+        direction LR
+        SS_BOX["Full-screen Box\nbackground: background_indic"]
+        SS_CIRCLE["200dp Circle Box\nbackground: accent_indic\nclip: CircleShape\nclickable"]
+        SS_TEXT["Text: CONNECT TO ESPRESSO MACHINE\n22sp Bold\ntextAlign = Center\ncolor: textprimary_indic"]
+        SS_CLICK["clickable handler"]
+    end
+
+    subgraph nav_action["🚀 Navigation Action"]
+        direction LR
+        NAV_CMD["navController.navigate\nBlespressoMainScreen.route\npopUpTo StartScreen inclusive = true"]
+        NAV_RESULT["StartScreen removed from back stack\nRemoteControlScreen displayed"]
+    end
+
+    LAUNCH --> NH --> SS_BOX
+    SS_BOX --> SS_CIRCLE --> SS_TEXT
+    SS_CIRCLE --> SS_CLICK
+    SS_CLICK --"User taps circle"--> NAV_CMD --> NAV_RESULT

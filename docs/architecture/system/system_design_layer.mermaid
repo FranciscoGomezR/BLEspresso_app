@@ -1,0 +1,37 @@
+flowchart LR
+    subgraph di["💉 Dependency Injection — AppModule (Hilt)"]
+        direction LR
+        DI_BT["Provides BluetoothAdapter\nsingleton"]
+        DI_BIND["Binds RemoteControlReceiveManager\nto RemoteControlBLEReceiveManager"]
+    end
+
+    subgraph data["🗄️ Data Layer"]
+        direction LR
+        D_IMPL["RemoteControlBLEReceiveManager\nBLE implementation"]
+        D_MODELS["Data Models\nBoilerDataResult / BoilerSetpoint\nCharDataClass / C_BrewConfigData\nC_PIDConfigData / ConnectionState\nResource(T)"]
+    end
+
+    subgraph domain["🔗 Domain Layer — Interface"]
+        direction LR
+        DOM_IF["RemoteControlReceiveManager\n16 MutableSharedFlows\nread / write functions\nmachineConfigReadComplete\npidConfigReadComplete"]
+    end
+
+    subgraph presentation["🖥️ Presentation Layer"]
+        direction LR
+        P_SS["StartScreen\nEntry point / navigation"]
+        P_RCS["RemoteControlScreen\nLive temp + machine config I/O"]
+        P_CPS["BlespressoCtrlParamScreen\nPID controller parameter I/O"]
+        P_NAV["NavHost\nJetpack Navigation Compose"]
+        P_VM["RemoteControlViewModel\nHiltViewModel\nState holders + BLE orchestration"]
+        P_CTB["CTextBox\nper-field UI state + validation\nmin/max clamping"]
+    end
+
+    DI_BT --> D_IMPL
+    DI_BIND --> DOM_IF
+    D_IMPL -.->|"implements"| DOM_IF
+    DOM_IF -->|"inject"| P_VM
+    P_VM --> P_RCS
+    P_VM --> P_CPS
+    P_NAV --> P_SS
+    P_NAV --> P_RCS
+    P_NAV --> P_CPS

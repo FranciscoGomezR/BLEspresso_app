@@ -1,0 +1,55 @@
+flowchart LR
+    subgraph android["⚙️ Android Platform"]
+        direction LR
+        BT["BluetoothAdapter\nsystem service singleton"]
+        GATT["BluetoothGatt\nGATT client"]
+        DEV[("BLEspresso Device\nGATT Server\n0x1400 Machine Control\n0x1500 PID Controller")]
+    end
+
+    subgraph di["💉 AppModule (Hilt)"]
+        direction LR
+        AM["Provides BluetoothAdapter\nBinds interface to impl"]
+    end
+
+    subgraph data["🗄️ Data Layer — RemoteControlBLEReceiveManager"]
+        direction LR
+        MGRIMPL["ScanCallback: find BLEspresso by name\nGattCallback: connect / MTU / notify\nonCharacteristicChanged\nonCharacteristicRead\nonCharacteristicWrite\nSequential read queue\nASCII to Float encoding"]
+    end
+
+    subgraph domain["🔗 Domain — RemoteControlReceiveManager (interface)"]
+        direction LR
+        IFACE["16 MutableSharedFlows\ndata / dataToRead / dataSteamSetpoint\ndataBrewCfg x6 / dataPIDcfg x7\nmachineConfigReadComplete\npidConfigReadComplete\nread/write function declarations"]
+    end
+
+    subgraph vm["📊 ViewModel — RemoteControlViewModel"]
+        direction LR
+        VM["boilerWaterTemp / boilerSetpointTemp\nsteamTempSetpoint / brewConfigData\npIDConfigData / connectionState\ninitiazeConnection / reconnect\nrxReadMachineConfiguration\nrxReadPIDConfiguration\nwriteMachineConfig / writePIDConfig\n_machineConfigLoaded / _pidConfigLoaded"]
+    end
+
+    subgraph ui["🖥️ UI — Presentation Layer"]
+        direction LR
+        NAV["NavHost\nstart_screen\nmain_screen\nctrl_param_screen"]
+        SS["StartScreen\nCircle button\nno BLE"]
+        RCS["RemoteControlScreen\nBoilerTemperatureProgressIndicator\n8 CTextBox — machine config\nREAD / WRITE / Controller buttons"]
+        CPS["BlespressoCtrlParamScreen\n7 CTextBox — PID params\nREAD / WRITE / Main buttons\nauto-read on connect"]
+    end
+
+    AM -->|"inject BluetoothAdapter"| MGRIMPL
+    AM -->|"bind interface"| IFACE
+    BT --> MGRIMPL
+    MGRIMPL <-->|"GATT operations"| GATT
+    GATT <-->|"BLE radio"| DEV
+    MGRIMPL -.->|"implements"| IFACE
+    IFACE -->|"inject via Hilt"| VM
+    MGRIMPL --"SharedFlows: data / dataBrewCfg / dataPIDcfg\nmachineConfigReadComplete / pidConfigReadComplete"--> VM
+    VM --"mutableStateOf observed by Compose"--> RCS
+    VM --"mutableStateOf observed by Compose"--> CPS
+    NAV --> SS
+    NAV --> RCS
+    NAV --> CPS
+    SS --"navigate to main"--> RCS
+    RCS --"navigate to ctrl params"--> CPS
+    CPS --"navigate back to main"--> RCS
+    RCS --"writeMachineConfig / rxReadMachineConfiguration"--> VM
+    CPS --"writePIDConfig / rxReadPIDConfiguration"--> VM
+    VM --"txWrite / rxRead via interface"--> IFACE

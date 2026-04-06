@@ -1,0 +1,43 @@
+flowchart LR
+    subgraph android["⚙️ Android Platform"]
+        direction LR
+        APP["BLEspresso_Application\nMainActivity"]
+    end
+
+    subgraph navhost["🧭 NavHost — Jetpack Navigation Compose"]
+        direction LR
+        NH["NavHost\nstartDestination: start_screen"]
+        ROUTE_SS["route: start_screen"]
+        ROUTE_MAIN["route: BLE_espresso_main_screen"]
+        ROUTE_CTRL["route: BLE_espresso_CtrlParameters_screen"]
+    end
+
+    subgraph startscreen["🟢 StartScreen"]
+        direction LR
+        SS["StartScreen composable\nCircle button\nCONNECT TO ESPRESSO MACHINE"]
+        SS_NAV["navigate to BlespressoMainScreen\npopUpTo StartScreen inclusive = true"]
+    end
+
+    subgraph mainscreen["🖥️ RemoteControlScreen"]
+        direction LR
+        RCS["RemoteControlScreen composable\nLive temp + Machine config I/O"]
+        RCS_NAV["navigate to BlespressoCtrlParamScreen\npopUpTo RemoteControlScreen inclusive = true"]
+        RCS_BLE["DisposableEffect ON_START\npermissionState.launchMultiplePermissionRequest\ninitiazeConnection or reconnect"]
+    end
+
+    subgraph ctrlscreen["🔧 BlespressoCtrlParamScreen"]
+        direction LR
+        CPS["BlespressoCtrlParamScreen composable\nPID parameter I/O"]
+        CPS_NAV["navigate back to BlespressoMainScreen\npopUpTo RemoteControlScreen inclusive = true"]
+        CPS_BLE["LaunchedEffect(Unit)\ninitiazeConnection\nauto-read PID on Connected"]
+    end
+
+    APP --> NH
+    NH --> ROUTE_SS --> SS
+    NH --> ROUTE_MAIN --> RCS
+    NH --> ROUTE_CTRL --> CPS
+    SS --"User taps circle"--> SS_NAV --> ROUTE_MAIN
+    RCS --"User taps Controller button"--> RCS_NAV --> ROUTE_CTRL
+    CPS --"User taps Main button"--> CPS_NAV --> ROUTE_MAIN
+    RCS --> RCS_BLE
+    CPS --> CPS_BLE

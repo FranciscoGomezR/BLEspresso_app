@@ -1,0 +1,37 @@
+flowchart LR
+    subgraph dev["🔵 BLE Device (GATT Server)"]
+        direction LR
+        DEV_CHAR["Boiler Water Temp\n0x1402 Characteristic\nCCCD Notifications enabled"]
+    end
+
+    subgraph mgr["📡 BLE Manager — RemoteControlBLEReceiveManager"]
+        direction LR
+        MGR_MTU["onMtuChanged callback\nMTU = 517"]
+        MGR_EN["enableNotification\nsetCharacteristicNotification true\nwriteDescriptor CCCD"]
+        MGR_CB["onCharacteristicChanged\nuuid = 0x1402"]
+        MGR_DEC["Decode ASCII bytes to Float\nexample: 0935 = 93.5 C"]
+        MGR_EMIT["data.emit\nResource.Success(BoilerDataResult)"]
+    end
+
+    subgraph vm["📊 ViewModel — RemoteControlViewModel"]
+        direction LR
+        VM_SUB["subscribeToChanges()"]
+        VM_COL["data.collect result"]
+        VM_STATE["boilerWaterTemp = temperature\nconnectionState = Connected"]
+    end
+
+    subgraph ui["🖥️ UI — RemoteControlScreen"]
+        direction LR
+        UI_OBS["Recomposition triggered\nmutableStateOf change"]
+        UI_INDIC["BoilerTemperatureProgressIndicator\nboilerWaterTemp / boilerTargetTemp"]
+        UI_RENDER["Arc sweep proportional to temp\nTick marks coloured to setpoint\nCentre text: temp C / Target: setpoint C"]
+    end
+
+    MGR_MTU --> MGR_EN
+    MGR_EN --"ENABLE_NOTIFICATION_VALUE to CCCD"--> DEV_CHAR
+    DEV_CHAR --"BLE Notification payload"--> MGR_CB
+    MGR_CB --> MGR_DEC --> MGR_EMIT
+    MGR_EMIT --"MutableSharedFlow data"--> VM_COL
+    VM_SUB --> VM_COL --> VM_STATE
+    VM_STATE --"mutableStateOf"--> UI_OBS
+    UI_OBS --> UI_INDIC --> UI_RENDER

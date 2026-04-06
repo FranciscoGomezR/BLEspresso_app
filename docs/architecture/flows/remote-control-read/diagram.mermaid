@@ -1,0 +1,51 @@
+flowchart LR
+    subgraph user["👤 User / Lifecycle"]
+        direction LR
+        U_TAP["Tap READ button\nor screen navigated to\nand BLE Connected"]
+    end
+
+    subgraph screen["🖥️ RemoteControlScreen"]
+        direction LR
+        S_BTN["onClick: rxReadMachineConfiguration\nor LaunchedEffect(connectionState)"]
+        S_EFFECT["LaunchedEffect(Unit)\ncollects machineConfigLoaded SharedFlow"]
+        S_LOAD["CTextBox.loadValue on 8 fields\ncBoilerTB / cSteamTempTB\ncPreinfusionPWR_TB / cPreinfusionTMR_TB\ncInfusionPWR_TB / cInfusionTMR_TB\ncDeclinPrPWR_TB / cDeclinPrTMR_TB"]
+    end
+
+    subgraph vm["📊 ViewModel — RemoteControlViewModel"]
+        direction LR
+        VM_RX["rxReadMachineConfiguration()"]
+        VM_ASYNC["async: machineConfigReadComplete.first()"]
+        VM_COLFLOWS["subscribeToReadOperation\ncollects 8 SharedFlows\nupdates boilerSetpointTemp\nsteamTempSetpoint / brewConfigData"]
+        VM_EMIT["_machineConfigLoaded.emit(Unit)"]
+    end
+
+    subgraph mgr["📡 BLE Manager — RemoteControlBLEReceiveManager"]
+        direction LR
+        M_QUEUE["rxReadMachineConfiguration\nbuild queue: 8 UUIDs\ntail-to-head read order"]
+        M_READ["readCharacteristicsDevice(char)"]
+        M_CB["onCharacteristicRead\nDecode ASCII to Float\nemit Resource.Success to SharedFlow"]
+        M_NEXT["remove from queue\nnext: readCharacteristicsDevice\nor emit machineConfigReadComplete"]
+    end
+
+    subgraph gatt["🔵 BLE Device — GATT"]
+        direction LR
+        G_BOILER["0x1403 Boiler Setpoint"]
+        G_STEAM["0x140A Steam Setpoint"]
+        G_BREW["0x1404 Pre-Inf Pwr\n0x1405 Pre-Inf Time\n0x1406 Inf Pwr\n0x1407 Inf Time\n0x1408 Decl Pwr\n0x1409 Decl Time"]
+    end
+
+    U_TAP --> S_BTN --> VM_RX
+    VM_RX --> VM_ASYNC
+    VM_ASYNC --> M_QUEUE --> M_READ
+    M_READ --"gatt.readCharacteristic"--> G_BOILER
+    M_READ --"gatt.readCharacteristic"--> G_STEAM
+    M_READ --"gatt.readCharacteristic"--> G_BREW
+    G_BOILER --"onCharacteristicRead"--> M_CB
+    G_STEAM --"onCharacteristicRead"--> M_CB
+    G_BREW --"onCharacteristicRead"--> M_CB
+    M_CB --> M_NEXT
+    M_NEXT --"loop: next char"--> M_READ
+    M_NEXT --"queue empty"--> VM_ASYNC
+    M_CB --"8 MutableSharedFlows"--> VM_COLFLOWS
+    VM_ASYNC --> VM_EMIT
+    VM_EMIT --> S_EFFECT --> S_LOAD
