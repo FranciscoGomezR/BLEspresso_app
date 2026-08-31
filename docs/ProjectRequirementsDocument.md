@@ -121,10 +121,9 @@ BLEspresso is an Android application that provides wireless remote control of an
 |       | - Proportional term P (0 – 100) |
 |       | - Integral term I (0 – 20) |
 |       | - Integral limit I_Max (0 – 500) |
-|       | - Integral windup I_Windup (0 – 1) |
 |       | - Derivative term D (0 – 10) |
-|       | - Derivative Low-Pass Filter D_LPF (5 – 250) |
-|       | - Controller Gain (0 – 100) |
+|       | - Phase-1 P-gain boost P_Boost (0 – 10) |
+|       | - Phase-1 I-gain boost I_Boost (0 – 20) |
 | FR-30 | The user shall be able to write all PID parameters to the device with a single action. |
 | FR-31 | The screen shall provide navigation back to the Main Control Screen. |
 
@@ -163,13 +162,12 @@ BLEspresso is an Android application that provides wireless remote control of an
 
 | Characteristic | UUID | Direction | Description |
 |----------------|------|-----------|-------------|
-| PID P Term | `00001501-…` | Read / Write | Proportional gain |
-| PID I Term | `00001502-…` | Read / Write | Integral gain |
-| PID I Max Term | `00001503-…` | Read / Write | Integral accumulator limit |
-| PID I Windup | `00001504-…` | Read / Write | Anti-windup threshold (0–1) |
-| PID D Term | `00001505-…` | Read / Write | Derivative gain |
-| PID D Term LPF | `00001506-…` | Read / Write | Derivative low-pass filter cutoff (Hz) |
-| PID Gain | `00001507-…` | Read / Write | Overall controller gain |
+| PID P Term | `00001501-…` | Read / Write | Proportional gain (`pid_Pterm`) |
+| PID I Term | `00001502-…` | Read / Write | Integral gain (`pid_Iterm`) |
+| PID I Max Term | `00001503-…` | Read / Write | Integral accumulator limit (`pid_Imaxterm`) |
+| PID D Term | `00001504-…` | Read / Write | Derivative gain (`pid_Dterm`) |
+| PID P Boost | `00001505-…` | Read / Write | Phase-1 proportional-gain boost multiplier (`pid_Pboost`) |
+| PID I Boost | `00001506-…` | Read / Write | Phase-1 integral-gain boost multiplier (`pid_Iboost`) |
 
 > All UUIDs share the suffix `-00b0-4240-ba50-05ca45bf8abc`.
 
@@ -317,12 +315,11 @@ Navigation is implemented with **Jetpack Navigation Compose** (`NavHost`).
 | Declining Pressure Power | 70 | 100 | % | 80.0 |
 | Declining Pressure Time | 0 | 15 | s | 10.0 |
 | PID — P Term | 0 | 100 | — | — |
-| PID — I Term | 0 | 20 | — | — |
+| PID — I Term | 0 | 20 | — | 0.3 |
 | PID — I Max (limit) | 0 | 500 | — | — |
-| PID — I Windup | 0 | 1 | — | — |
 | PID — D Term | 0 | 10 | — | — |
-| PID — D LPF | 5 | 250 | Hz | — |
-| PID — Gain | 0 | 100 | — | — |
+| PID — P Boost | 0 | 10 | — | 1.0 |
+| PID — I Boost | 0 | 20 | — | 6.5 |
 
 ---
 

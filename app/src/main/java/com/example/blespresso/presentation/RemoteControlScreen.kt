@@ -151,29 +151,6 @@ fun RemoteControlScreen(
     val cDeclinPrPWR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.DECL_PWR_MIN; maxInValue = RemoteControlViewModel.DECL_PWR_MAX } }
     val cDeclinPrTMR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.DECL_TMR_MIN; maxInValue = RemoteControlViewModel.DECL_TMR_MAX } }
 
-    //Controller Parameter
-    val cPterm_TB = remember { CTextBox() }
-    cPterm_TB.maxInValue = 100.0f
-    cPterm_TB.minInValue = 0.0f
-    val cIterm_TB = remember { CTextBox() }
-    cIterm_TB.maxInValue = 20.0f
-    cIterm_TB.minInValue = 0.0f
-    val cIlimit_TB = remember { CTextBox() }
-    cIlimit_TB.maxInValue = 500.0f
-    cIlimit_TB.minInValue = 0.0f
-    val cIwindup_TB = remember { CTextBox() }
-    cIwindup_TB.maxInValue = 1.0f
-    cIwindup_TB.minInValue = 0.0f
-    val cDterm_TB = remember { CTextBox() }
-    cDterm_TB.maxInValue = 10.0f
-    cDterm_TB.minInValue = 0.0f
-    val cLPFterm_TB = remember { CTextBox() }
-    cLPFterm_TB.maxInValue = 250.0f
-    cLPFterm_TB.minInValue = 5.0f
-    val cGainterm_TB = remember { CTextBox() }
-    cGainterm_TB.maxInValue = 100.0f
-    cGainterm_TB.minInValue = 0.0f
-
     DisposableEffect(
         key1 = lifecycleOwner,
         effect = {

@@ -8,7 +8,7 @@ flowchart LR
     subgraph screen["🖥️ BlespressoCtrlParamScreen"]
         direction LR
         S_EFFECT["LaunchedEffect(Unit)\ncollects pidConfigLoaded SharedFlow"]
-        S_LOAD["CTextBox.loadValue on 7 fields\ncPterm_TB / cIterm_TB / cIlimit_TB\ncIwindup_TB / cDterm_TB\ncLPFterm_TB / cGainterm_TB"]
+        S_LOAD["CTextBox.loadValue on 6 fields\ncPterm_TB / cIterm_TB / cIlimit_TB\ncDterm_TB / cPboost_TB / cIboost_TB"]
     end
 
     subgraph vm["📊 ViewModel — RemoteControlViewModel"]
@@ -16,13 +16,13 @@ flowchart LR
         VM_INIT["initiazeConnection()\nsubscribeToChanges()\nsubscribeToReadOperation()"]
         VM_RX["rxReadPIDConfiguration()"]
         VM_ASYNC["async: pidConfigReadComplete.first()"]
-        VM_COLFLOWS["subscribeToReadOperation\ncollects 7 PID SharedFlows\nupdates pIDConfigData fields"]
+        VM_COLFLOWS["subscribeToReadOperation\ncollects 6 PID SharedFlows\nupdates pIDConfigData fields"]
         VM_EMIT["_pidConfigLoaded.emit(Unit)"]
     end
 
     subgraph mgr["📡 BLE Manager — RemoteControlBLEReceiveManager"]
         direction LR
-        M_QUEUE["rxReadPIDConfiguration\nbuild queue: 7 UUIDs\ntail-to-head read order"]
+        M_QUEUE["rxReadPIDConfiguration\nbuild queue: 6 UUIDs\ntail-to-head read order"]
         M_READ["readCharacteristicsDevice(char)"]
         M_CB["onCharacteristicRead\nDecode ASCII to Float\nemit Resource.Success to SharedFlow"]
         M_NEXT["remove from queue\nnext: readCharacteristicsDevice\nor emit pidConfigReadComplete"]
@@ -30,7 +30,7 @@ flowchart LR
 
     subgraph gatt["🔵 BLE Device — GATT PID Service 0x1500"]
         direction LR
-        G_PID["0x1501 P Term\n0x1502 I Term\n0x1503 I Max\n0x1504 Windup\n0x1505 D Term\n0x1506 D LPF\n0x1507 Gain"]
+        G_PID["0x1501 P Term\n0x1502 I Term\n0x1503 I Max\n0x1504 D Term\n0x1505 P Boost\n0x1506 I Boost"]
     end
 
     LC_INIT --> VM_INIT --> VM_RX
@@ -41,5 +41,5 @@ flowchart LR
     M_CB --> M_NEXT
     M_NEXT --"loop: next char"--> M_READ
     M_NEXT --"queue empty"--> VM_ASYNC
-    M_CB --"7 MutableSharedFlows"--> VM_COLFLOWS
+    M_CB --"6 MutableSharedFlows"--> VM_COLFLOWS
     VM_ASYNC --> VM_EMIT --> S_EFFECT --> S_LOAD

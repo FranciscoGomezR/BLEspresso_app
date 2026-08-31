@@ -25,19 +25,18 @@ sequenceDiagram
     User->>Screen: Double-tap "Write" button
     Screen->>Screen: detectTapGestures → onDoubleTap
 
-    Screen->>Screen: For each of 7 PID fields:<br/>pass value if (modified && text.isNotBlank()) else null
+    Screen->>Screen: For each of 6 PID fields:<br/>pass value if (modified && text.isNotBlank()) else null
 
-    Screen->>VM: viewModel.writePIDConfig(<br/>  pTerm, iTerm, iMax, windup,<br/>  dTerm, dLpf, gain<br/>)
+    Screen->>VM: viewModel.writePIDConfig(<br/>  pTerm, iTerm, iMax,<br/>  dTerm, pBoost, iBoost<br/>)
 
     activate VM
     VM->>VM: For each non-null arg → call matching txWritePid*()
     VM->>BLEMgr: txWritePidPTerm(pTerm)   [if modified]
     VM->>BLEMgr: txWritePidITerm(iTerm)   [if modified]
     VM->>BLEMgr: txWritePidIMax(iMax)     [if modified]
-    VM->>BLEMgr: txWritePidWindup(windup) [if modified]
     VM->>BLEMgr: txWritePidDTerm(dTerm)   [if modified]
-    VM->>BLEMgr: txWritePidDLpf(dLpf)    [if modified]
-    VM->>BLEMgr: txWritePidGain(gain)     [if modified]
+    VM->>BLEMgr: txWritePidPBoost(pBoost) [if modified]
+    VM->>BLEMgr: txWritePidIBoost(iBoost) [if modified]
     VM-->>Screen: returns anyModified: Boolean
     deactivate VM
 
@@ -49,7 +48,7 @@ sequenceDiagram
     deactivate BLEMgr
 
     alt anyModified == true
-        Screen->>Screen: Reset modified=false for all 7 CTextBoxes
+        Screen->>Screen: Reset modified=false for all 6 CTextBoxes
         Screen->>User: Toast "Sending modified PID configuration"
     else anyModified == false
         Screen->>User: Toast "No fields have been modified"
@@ -65,10 +64,9 @@ sequenceDiagram
 | PID P Term     | `…1501` | 4 | `12.5 → "0125"` |
 | PID I Term     | `…1502` | 3 | `1.5 → "015"` |
 | PID I Max      | `…1503` | 4 | `50.0 → "0500"` |
-| PID Windup     | `…1504` | 1 | `1.0 → "1"` / `0.0 → "0"` |
-| PID D Term     | `…1505` | 3 | `2.5 → "025"` |
-| PID D LPF      | `…1506` | 4 | `10.0 → "0100"` |
-| PID Gain       | `…1507` | 4 | `1.0 → "0010"` |
+| PID D Term     | `…1504` | 3 | `2.5 → "025"` |
+| PID P Boost    | `…1505` | 3 | `1.0 → "010"` |
+| PID I Boost    | `…1506` | 3 | `6.5 → "065"` |
 
 ---
 
@@ -79,7 +77,6 @@ sequenceDiagram
 | P (Proportional) | 0 | 100 |
 | I (Integral) | 0 | 20 |
 | I_Max (Integral limit) | 0 | 500 |
-| I_Windup (Anti-windup) | 0 | 1 |
 | D (Derivative) | 0 | 10 |
-| D_LPF (Low-pass cutoff) | 5 | 250 |
-| Gain | 0 | 100 |
+| P_Boost (Phase-1 P-gain boost) | 0 | 10 |
+| I_Boost (Phase-1 I-gain boost) | 0 | 20 |

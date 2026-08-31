@@ -69,10 +69,9 @@ fun BlespressoCtrlParamScreen(
     val cPterm_TB   = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_P_MIN;      maxInValue = RemoteControlViewModel.PID_P_MAX } }
     val cIterm_TB   = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_I_MIN;      maxInValue = RemoteControlViewModel.PID_I_MAX } }
     val cIlimit_TB  = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_ILIMIT_MIN; maxInValue = RemoteControlViewModel.PID_ILIMIT_MAX } }
-    val cIwindup_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_WINDUP_MIN; maxInValue = RemoteControlViewModel.PID_WINDUP_MAX } }
     val cDterm_TB   = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_D_MIN;      maxInValue = RemoteControlViewModel.PID_D_MAX } }
-    val cLPFterm_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_LPF_MIN;    maxInValue = RemoteControlViewModel.PID_LPF_MAX } }
-    val cGainterm_TB= remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_GAIN_MIN;   maxInValue = RemoteControlViewModel.PID_GAIN_MAX } }
+    val cPboost_TB  = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_PBOOST_MIN; maxInValue = RemoteControlViewModel.PID_PBOOST_MAX } }
+    val cIboost_TB  = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PID_IBOOST_MIN; maxInValue = RemoteControlViewModel.PID_IBOOST_MAX } }
 
     // Get the software keyboard controller
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -114,10 +113,9 @@ fun BlespressoCtrlParamScreen(
             cPterm_TB.loadValue(viewModel.pIDConfigData.cfgPterm.toString())
             cIterm_TB.loadValue(viewModel.pIDConfigData.cfgIterm.toString())
             cIlimit_TB.loadValue(viewModel.pIDConfigData.cfgImaxterm.toString())
-            cIwindup_TB.loadValue(viewModel.pIDConfigData.cfgWindup.toString())
             cDterm_TB.loadValue(viewModel.pIDConfigData.cfgDterm.toString())
-            cLPFterm_TB.loadValue(viewModel.pIDConfigData.cfgDlpfterm.toString())
-            cGainterm_TB.loadValue(viewModel.pIDConfigData.cfgGainterm.toString())
+            cPboost_TB.loadValue(viewModel.pIDConfigData.cfgPboost.toString())
+            cIboost_TB.loadValue(viewModel.pIDConfigData.cfgIboost.toString())
         }
     }
 
@@ -274,15 +272,6 @@ fun BlespressoCtrlParamScreen(
                                     .wrapContentHeight(align = Alignment.CenterVertically)
                             )
                             Text(
-                                text = "Integral Windup",
-                                style = TextStyle(
-                                    fontSize = TParameter_fontsize,
-                                    color = textprimary
-                                ),
-                                modifier = Modifier.height(30.dp)
-                                    .wrapContentHeight(align = Alignment.CenterVertically)
-                            )
-                            Text(
                                 text = "Derivative",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
@@ -292,7 +281,7 @@ fun BlespressoCtrlParamScreen(
                                     .wrapContentHeight(align = Alignment.CenterVertically)
                             )
                             Text(
-                                text = "LPF Freq. Cut",
+                                text = "P-Gain Boost",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
                                     color = textprimary
@@ -301,7 +290,7 @@ fun BlespressoCtrlParamScreen(
                                     .wrapContentHeight(align = Alignment.CenterVertically)
                             )
                             Text(
-                                text = "System Gain",
+                                text = "I-Gain Boost",
                                 style = TextStyle(
                                     fontSize = TParameter_fontsize,
                                     color = textprimary
@@ -342,15 +331,6 @@ fun BlespressoCtrlParamScreen(
                                     .wrapContentHeight(align = Alignment.CenterVertically)
                             ) //Integral Limit
                             Text(
-                                text = cIwindup_TB.minInValue.toString(),
-                                style = TextStyle(
-                                    fontSize = MinMaxParam_fontsize,
-                                    color = textsecondary
-                                ),
-                                modifier = Modifier.height(30.dp)
-                                    .wrapContentHeight(align = Alignment.CenterVertically)
-                            ) //Integral Windup
-                            Text(
                                 text = cDterm_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
@@ -360,23 +340,23 @@ fun BlespressoCtrlParamScreen(
                                     .wrapContentHeight(align = Alignment.CenterVertically)
                             ) //Derivative
                             Text(
-                                text = cLPFterm_TB.minInValue.toString(),
+                                text = cPboost_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
                                     color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
-                            )  //LPF Freq. Cut
+                            )  //P-Gain Boost
                             Text(
-                                text = cGainterm_TB.minInValue.toString(),
+                                text = cIboost_TB.minInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
                                     color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
-                            )  //System Gain
+                            )  //I-Gain Boost
                         }
                         Column( // 3 COLUMN → Input----------------------------
                             modifier = Modifier.weight(2f).padding(top = 2.dp),
@@ -384,7 +364,7 @@ fun BlespressoCtrlParamScreen(
                         ) {
                             // TLDR: Replaced processTextFieldInput(newText, cXxx_TB) global function calls with
                             //       cXxx_TB.onValueChange(newText) and processKeyboardDoneEvent(cXxx_TB) with
-                            //       cXxx_TB.onDone() across all 7 BasicTextFields in this column.
+                            //       cXxx_TB.onDone() across all 6 BasicTextFields in this column.
                             //       The logic was moved into CTextBox methods so it lives with the data it operates on.
                             //       The onFocusChanged LPF clamping was also removed: onDone() already covers that case.
                             BasicTextField( // Proportional Term INPUT
@@ -456,29 +436,6 @@ fun BlespressoCtrlParamScreen(
                                     keyboardController?.hide()
                                 })
                             )
-                            BasicTextField( // Integral Windup INPUT
-                                value = cIwindup_TB.userInput,
-                                onValueChange = { newText ->
-                                    cIwindup_TB.onValueChange(newText)
-                                },
-                                cursorBrush = SolidColor(textprimary),
-                                textStyle = TextStyle(
-                                    color = textprimary,
-                                    fontSize = ParamValue_fontsize,
-                                    textAlign = TextAlign.Center
-                                ),
-                                modifier = Modifier.height(30.dp)
-                                    .background(surface)
-                                    .wrapContentHeight(align = Alignment.CenterVertically),
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(onDone = {
-                                    cIwindup_TB.onDone()
-                                    keyboardController?.hide()
-                                })
-                            )
                             BasicTextField( // Derivatve Term INPUT
                                 value = cDterm_TB.userInput,
                                 onValueChange = { newText ->
@@ -502,10 +459,10 @@ fun BlespressoCtrlParamScreen(
                                     keyboardController?.hide()
                                 })
                             )
-                            BasicTextField( // Low-pass Filter Frequency INPUT
-                                value = cLPFterm_TB.userInput,
+                            BasicTextField( // P-Gain Boost INPUT
+                                value = cPboost_TB.userInput,
                                 onValueChange = { newText ->
-                                    cLPFterm_TB.onValueChange(newText)
+                                    cPboost_TB.onValueChange(newText)
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
@@ -521,14 +478,14 @@ fun BlespressoCtrlParamScreen(
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    cLPFterm_TB.onDone()
+                                    cPboost_TB.onDone()
                                     keyboardController?.hide()
                                 })
                             )
-                            BasicTextField( // System Gain Term INPUT
-                                value = cGainterm_TB.userInput,
+                            BasicTextField( // I-Gain Boost INPUT
+                                value = cIboost_TB.userInput,
                                 onValueChange = { newText ->
-                                    cGainterm_TB.onValueChange(newText)
+                                    cIboost_TB.onValueChange(newText)
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
@@ -544,7 +501,7 @@ fun BlespressoCtrlParamScreen(
                                     imeAction = ImeAction.Done
                                 ),
                                 keyboardActions = KeyboardActions(onDone = {
-                                    cGainterm_TB.onDone()
+                                    cIboost_TB.onDone()
                                     keyboardController?.hide()
                                 })
                             )
@@ -583,15 +540,6 @@ fun BlespressoCtrlParamScreen(
                                     .wrapContentHeight(align = Alignment.CenterVertically)
                             ) //Integral Limit
                             Text(
-                                text = cIwindup_TB.maxInValue.toString(),
-                                style = TextStyle(
-                                    fontSize = MinMaxParam_fontsize,
-                                    color = textsecondary
-                                ),
-                                modifier = Modifier.height(30.dp)
-                                    .wrapContentHeight(align = Alignment.CenterVertically)
-                            ) //Integral Windup
-                            Text(
                                 text = cDterm_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
@@ -601,23 +549,23 @@ fun BlespressoCtrlParamScreen(
                                     .wrapContentHeight(align = Alignment.CenterVertically)
                             ) //Derivative
                             Text(
-                                text = cLPFterm_TB.maxInValue.toString(),
+                                text = cPboost_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
                                     color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
-                            )  //LPF Freq. Cut
+                            )  //P-Gain Boost
                             Text(
-                                text = cGainterm_TB.maxInValue.toString(),
+                                text = cIboost_TB.maxInValue.toString(),
                                 style = TextStyle(
                                     fontSize = MinMaxParam_fontsize,
                                     color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
-                            )  //System Gain
+                            )  //I-Gain Boost
                         }
                         Column(
                             // 5 COLUMN → Units----------------------------
@@ -660,25 +608,16 @@ fun BlespressoCtrlParamScreen(
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
-                            ) //Integral Windup
-                            Text(
-                                text = "",
-                                style = TextStyle(
-                                    fontSize = TableParam_fontsize,
-                                    color = textsecondary
-                                ),
-                                modifier = Modifier.height(30.dp)
-                                    .wrapContentHeight(align = Alignment.CenterVertically)
                             ) //Derivative
                             Text(
-                                text = "Hz",
+                                text = "",
                                 style = TextStyle(
                                     fontSize = TableParam_fontsize,
                                     color = textsecondary
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
-                            )  //LPF Freq. Cut
+                            )  //P-Gain Boost
                             Text(
                                 text = "",
                                 style = TextStyle(
@@ -687,7 +626,7 @@ fun BlespressoCtrlParamScreen(
                                 ),
                                 modifier = Modifier.height(30.dp)
                                     .wrapContentHeight(align = Alignment.CenterVertically)
-                            )  //System Gain
+                            )  //I-Gain Boost
                         }
                     }
                     //  ROW to allocate the following buttons:
@@ -775,13 +714,12 @@ fun BlespressoCtrlParamScreen(
                                                     pTerm  = if (cPterm_TB.modified   && cPterm_TB.userInput.text.isNotBlank())   cPterm_TB.userInput.text.toFloat()   else null,
                                                     iTerm  = if (cIterm_TB.modified   && cIterm_TB.userInput.text.isNotBlank())   cIterm_TB.userInput.text.toFloat()   else null,
                                                     iMax   = if (cIlimit_TB.modified  && cIlimit_TB.userInput.text.isNotBlank())  cIlimit_TB.userInput.text.toFloat()  else null,
-                                                    windup = if (cIwindup_TB.modified && cIwindup_TB.userInput.text.isNotBlank()) cIwindup_TB.userInput.text.toFloat() else null,
                                                     dTerm  = if (cDterm_TB.modified   && cDterm_TB.userInput.text.isNotBlank())   cDterm_TB.userInput.text.toFloat()   else null,
-                                                    dLpf   = if (cLPFterm_TB.modified && cLPFterm_TB.userInput.text.isNotBlank()) cLPFterm_TB.userInput.text.toFloat() else null,
-                                                    gain   = if (cGainterm_TB.modified&& cGainterm_TB.userInput.text.isNotBlank())cGainterm_TB.userInput.text.toFloat()else null,
+                                                    pBoost = if (cPboost_TB.modified  && cPboost_TB.userInput.text.isNotBlank())  cPboost_TB.userInput.text.toFloat()  else null,
+                                                    iBoost = if (cIboost_TB.modified  && cIboost_TB.userInput.text.isNotBlank())  cIboost_TB.userInput.text.toFloat()  else null,
                                                 )
                                                 if (anyModified) {
-                                                    listOf(cPterm_TB, cIterm_TB, cIlimit_TB, cIwindup_TB, cDterm_TB, cLPFterm_TB, cGainterm_TB).forEach { it.modified = false }
+                                                    listOf(cPterm_TB, cIterm_TB, cIlimit_TB, cDterm_TB, cPboost_TB, cIboost_TB).forEach { it.modified = false }
                                                     Toast.makeText(context, "Sending modified PID configuration", Toast.LENGTH_LONG).show()
                                                 } else {
                                                     Toast.makeText(context, "No fields have been modified", Toast.LENGTH_SHORT).show()

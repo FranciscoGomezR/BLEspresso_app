@@ -76,14 +76,12 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         "00001502-00b0-4240-ba50-05ca45bf8abc"
     private val BLE_CHAR_PID_I_MAX_TERM_UUID =
         "00001503-00b0-4240-ba50-05ca45bf8abc"
-    private val BLE_CHAR_PID_I_TERM_WINDUP_UUID =
-        "00001504-00b0-4240-ba50-05ca45bf8abc"
     private val BLE_CHAR_PID_D_TERM_UUID =
+        "00001504-00b0-4240-ba50-05ca45bf8abc"
+    private val BLE_CHAR_PID_P_BOOST_UUID =
         "00001505-00b0-4240-ba50-05ca45bf8abc"
-    private val BLE_CHAR_PID_D_TERM_LPF_UUID =
+    private val BLE_CHAR_PID_I_BOOST_UUID =
         "00001506-00b0-4240-ba50-05ca45bf8abc"
-    private val BLE_CHAR_PID_GAIN___UUID =
-        "00001507-00b0-4240-ba50-05ca45bf8abc"
 
     private var characteristicToReadQueue = ArrayList<Any>()
     private var characteristicToReadQueueIndex: Int = 0
@@ -113,10 +111,9 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     override val dataPIDcfgPterm:       MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataPIDcfgIterm:       MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataPIDcfgImaxterm:    MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
-    override val dataPIDcfgWindup:      MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataPIDcfgDterm:       MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
-    override val dataPIDcfgDlpfterm:    MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
-    override val dataPIDcfgGainterm:    MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
+    override val dataPIDcfgPboost:      MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
+    override val dataPIDcfgIboost:      MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
 
     private val bleScanner by lazy {
         bluetoothAdapter.bluetoothLeScanner
@@ -428,18 +425,6 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                         }
                         Log.d("BLERxManager_PID_CFG", "Sending: $rxPIDparam to screen")
                     }
-                    UUID.fromString(BLE_CHAR_PID_I_TERM_WINDUP_UUID)-> {
-                        super.onCharacteristicRead(gatt, characteristic, status)
-                        rxString = characteristic?.getStringValue(0).toString()
-                        Log.d("BLERxManager_PID_CFG", "Read PID Integral windup from device: $rxString")
-                        rxPIDparam = (rxString[0].code - 48) * 1.0f
-                        rxPIDparam += 0
-                        rxPIDValue = CharDataClass( rxPIDparam,ConnectionState.Connected)
-                        coroutineScope.launch {
-                            dataPIDcfgWindup.emit(Resource.Success(data= rxPIDValue))
-                        }
-                        Log.d("BLERxManager_PID_CFG", "Sending: $rxPIDparam to screen")
-                    }
                     UUID.fromString(BLE_CHAR_PID_D_TERM_UUID)-> {
                         super.onCharacteristicRead(gatt, characteristic, status)
                         rxString = characteristic?.getStringValue(0).toString()
@@ -453,31 +438,29 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                         }
                         Log.d("BLERxManager_PID_CFG", "Sending: $rxPIDparam to screen")
                     }
-                    UUID.fromString(BLE_CHAR_PID_D_TERM_LPF_UUID)-> {
+                    UUID.fromString(BLE_CHAR_PID_P_BOOST_UUID)-> {
                         super.onCharacteristicRead(gatt, characteristic, status)
                         rxString = characteristic?.getStringValue(0).toString()
-                        Log.d("BLERxManager_PID_CFG", "Read PID LowPass Filter term from device: $rxString")
-                        rxPIDparam = (rxString[0].code - 48) * 100.0f
-                        rxPIDparam += (rxString[1].code - 48) * 10.0f
-                        rxPIDparam += (rxString[2].code - 48) * 1.0f
-                        rxPIDparam += (rxString[3].code - 48) * 0.1f
+                        Log.d("BLERxManager_PID_CFG", "Read PID Phase-1 P-gain boost from device: $rxString")
+                        rxPIDparam = (rxString[0].code - 48) * 10.0f
+                        rxPIDparam += (rxString[1].code - 48) * 1.0f
+                        rxPIDparam += (rxString[2].code - 48) * 0.1f
                         rxPIDValue = CharDataClass( rxPIDparam,ConnectionState.Connected)
                         coroutineScope.launch {
-                            dataPIDcfgDlpfterm.emit(Resource.Success(data= rxPIDValue))
+                            dataPIDcfgPboost.emit(Resource.Success(data= rxPIDValue))
                         }
                         Log.d("BLERxManager_PID_CFG", "Sending: $rxPIDparam to screen")
                     }
-                    UUID.fromString(BLE_CHAR_PID_GAIN___UUID)-> {
+                    UUID.fromString(BLE_CHAR_PID_I_BOOST_UUID)-> {
                         super.onCharacteristicRead(gatt, characteristic, status)
                         rxString = characteristic?.getStringValue(0).toString()
-                        Log.d("BLERxManager_PID_CFG", "Read PID Gain term from device: $rxString")
-                        rxPIDparam = (rxString[0].code - 48) * 100.0f
-                        rxPIDparam += (rxString[1].code - 48) * 10.0f
-                        rxPIDparam += (rxString[2].code - 48) * 1.0f
-                        rxPIDparam += (rxString[3].code - 48) * 0.1f
+                        Log.d("BLERxManager_PID_CFG", "Read PID Phase-1 I-gain boost from device: $rxString")
+                        rxPIDparam = (rxString[0].code - 48) * 10.0f
+                        rxPIDparam += (rxString[1].code - 48) * 1.0f
+                        rxPIDparam += (rxString[2].code - 48) * 0.1f
                         rxPIDValue = CharDataClass( rxPIDparam,ConnectionState.Connected)
                         coroutineScope.launch {
-                            dataPIDcfgGainterm.emit(Resource.Success(data= rxPIDValue))
+                            dataPIDcfgIboost.emit(Resource.Success(data= rxPIDValue))
                         }
                         Log.d("BLERxManager_PID_CFG", "Sending: $rxPIDparam to screen")
                     }
@@ -539,14 +522,12 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                             Log.d("BLE_ManagerTX", "PID -I_TERM-> Write Successful")
                         UUID.fromString(BLE_CHAR_PID_I_MAX_TERM_UUID) ->
                             Log.d("BLE_ManagerTX", "PID -I_MAX_TERM-> Write Successful")
-                        UUID.fromString(BLE_CHAR_PID_I_TERM_WINDUP_UUID) ->
-                            Log.d("BLE_ManagerTX", "PID -I_TERM_WINDUP-> Write Successful")
                         UUID.fromString(BLE_CHAR_PID_D_TERM_UUID) ->
                             Log.d("BLE_ManagerTX", "PID -D_TERM-> Write Successful")
-                        UUID.fromString(BLE_CHAR_PID_D_TERM_LPF_UUID) ->
-                            Log.d("BLE_ManagerTX", "PID -D_TERM_LPF-> Write Successful")
-                        UUID.fromString(BLE_CHAR_PID_GAIN___UUID) ->
-                            Log.d("BLE_ManagerTX", "PID -PID_GAIN-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_P_BOOST_UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -P_BOOST-> Write Successful")
+                        UUID.fromString(BLE_CHAR_PID_I_BOOST_UUID) ->
+                            Log.d("BLE_ManagerTX", "PID -I_BOOST-> Write Successful")
                         else -> Unit
                     }
                 }
@@ -709,14 +690,12 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     override fun txWritePidITerm(value: Float)  = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_TERM_UUID,        value, 3)
     // TLDR: Writes PID Integral max clamp value to device (4-digit format, e.g. 50.0 → "0500").
     override fun txWritePidIMax(value: Float)   = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_MAX_TERM_UUID,    value, 4)
-    // TLDR: Writes PID anti-windup flag to device (1-digit format: "1" if ≥1.0, "0" otherwise).
-    override fun txWritePidWindup(value: Float) = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_TERM_WINDUP_UUID, value, 1)
     // TLDR: Writes PID Derivative term to device (3-digit format, e.g. 2.5 → "025").
     override fun txWritePidDTerm(value: Float)  = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_D_TERM_UUID,        value, 3)
-    // TLDR: Writes PID Derivative low-pass filter cutoff to device (4-digit format, e.g. 10.0 → "0100").
-    override fun txWritePidDLpf(value: Float)   = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_D_TERM_LPF_UUID,    value, 4)
-    // TLDR: Writes overall PID controller gain multiplier to device (4-digit format, e.g. 1.0 → "0010").
-    override fun txWritePidGain(value: Float)   = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_GAIN___UUID,        value, 4)
+    // TLDR: Writes PID phase-1 proportional-gain boost multiplier to device (3-digit format, e.g. 1.0 → "010").
+    override fun txWritePidPBoost(value: Float) = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_P_BOOST_UUID,       value, 3)
+    // TLDR: Writes PID phase-1 integral-gain boost multiplier to device (3-digit format, e.g. 6.5 → "065").
+    override fun txWritePidIBoost(value: Float) = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_BOOST_UUID,       value, 3)
 
     // TLDR: Reads all 8 machine-configuration UUIDs in a single GATT-safe sequential queue:
     //       boiler target temp → steam setpoint → 6 brew params (pre-infusion, infusion, declining).
@@ -754,10 +733,9 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         characteristicToReadFLAG = true
         characteristicToReadQueue.clear()
         val characteristicsPIDToRead = listOf(
-            BLE_CHAR_PID_GAIN___UUID,
-            BLE_CHAR_PID_D_TERM_LPF_UUID,
+            BLE_CHAR_PID_I_BOOST_UUID,
+            BLE_CHAR_PID_P_BOOST_UUID,
             BLE_CHAR_PID_D_TERM_UUID,
-            BLE_CHAR_PID_I_TERM_WINDUP_UUID,
             BLE_CHAR_PID_I_MAX_TERM_UUID,
             BLE_CHAR_PID_I_TERM_UUID,
             BLE_CHAR_PID_P_TERM_UUID
@@ -773,7 +751,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         }
 
         Log.d("BLE_rxTargetTemp", "About to READ PID configuration")
-        characteristicToReadQueueIndex = 6
+        characteristicToReadQueueIndex = 5
         readCharacteristicsDevice( characteristicToReadQueue.get(characteristicToReadQueueIndex) as BluetoothGattCharacteristic)
     }
 

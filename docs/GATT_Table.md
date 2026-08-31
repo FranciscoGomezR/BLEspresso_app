@@ -29,15 +29,14 @@ All UUIDs share the suffix `-00b0-4240-ba50-05ca45bf8abc`.
 
 **Service UUID:** `00001500-00b0-4240-ba50-05ca45bf8abc`
 
-| # | Characteristic Name         | Full UUID                                    | Direction    | Format          | Description                                              |
-|---|-----------------------------|----------------------------------------------|--------------|-----------------|----------------------------------------------------------|
-| 1 | PID Proportional (P)        | `00001501-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 4 digits  | Proportional gain (0 – 100; e.g. `0125` = 12.5)         |
-| 2 | PID Integral (I)            | `00001502-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 3 digits  | Integral gain (0 – 20; e.g. `015` = 1.5)                |
-| 3 | PID Integral Max (I_Max)    | `00001503-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 4 digits  | Integral accumulator clamp (0 – 500; e.g. `0500` = 50.0)|
-| 4 | PID Integral Windup         | `00001504-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 1 digit   | Anti-windup flag (0 – 1; `1` = enabled, `0` = disabled) |
-| 5 | PID Derivative (D)          | `00001505-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 3 digits  | Derivative gain (0 – 10; e.g. `025` = 2.5)              |
-| 6 | PID Derivative LPF (D_LPF) | `00001506-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 4 digits  | Derivative low-pass filter cutoff in Hz (5 – 250; e.g. `0100` = 10.0 Hz) |
-| 7 | PID Gain                    | `00001507-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 4 digits  | Overall controller gain multiplier (0 – 100; e.g. `0010` = 1.0) |
+| # | Characteristic Name         | Full UUID                                    | Direction    | Format          | `blEspressoProfile` Field | Description                                              |
+|---|-----------------------------|----------------------------------------------|--------------|-----------------|---------------------------|----------------------------------------------------------|
+| 1 | PID Proportional (P)        | `00001501-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 4 digits  | `pid_Pterm`               | Proportional gain (0 – 100; e.g. `0125` = 12.5)         |
+| 2 | PID Integral (I)            | `00001502-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 3 digits  | `pid_Iterm`               | Integral gain (0 – 20; e.g. `015` = 1.5)                |
+| 3 | PID Integral Max (I_Max)    | `00001503-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 4 digits  | `pid_Imaxterm`            | Integral accumulator clamp (0 – 500; e.g. `0500` = 50.0)|
+| 4 | PID Derivative (D)          | `00001504-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 3 digits  | `pid_Dterm`               | Derivative gain (0 – 10; e.g. `025` = 2.5)              |
+| 5 | PID Phase-1 P-Gain Boost    | `00001505-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 3 digits  | `pid_Pboost`              | Phase-1 proportional-gain boost multiplier (default 1.0; e.g. `010` = 1.0) |
+| 6 | PID Phase-1 I-Gain Boost    | `00001506-00b0-4240-ba50-05ca45bf8abc`       | Read / Write | ASCII 3 digits  | `pid_Iboost`              | Phase-1 integral-gain boost multiplier (default 6.5; e.g. `065` = 6.5) |
 
 ---
 
@@ -58,7 +57,6 @@ where the digit weights `Wₙ` depend on the number of expected digits:
 |----------|---------------------|
 | 4-digit  | 100.0, 10.0, 1.0, 0.1 |
 | 3-digit  | 10.0, 1.0, 0.1        |
-| 1-digit  | 1.0                   |
 
 ### Write (App → Device)
 `dataConvertionFloatToCharacteristic()` converts a Float to a fixed-width ASCII string before writing.
@@ -68,7 +66,6 @@ where the digit weights `Wₙ` depend on the number of expected digits:
 | 93.5 °C   | 4      | `0935`        |
 | 35.0 %    | 3      | `350`         |
 | 99.0 %    | 4      | `0990`        |
-| 1 (on)    | 1      | `1`           |
 
 ### Notification (Live Temperature)
 Boiler Water Temperature (UUID `…1402`) pushes ASCII 4-digit notifications.  

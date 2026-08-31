@@ -30,10 +30,9 @@ interface RemoteControlReceiveManager
     val dataPIDcfgPterm:MutableSharedFlow<Resource<CharDataClass>>
     val dataPIDcfgIterm:MutableSharedFlow<Resource<CharDataClass>>
     val dataPIDcfgImaxterm:MutableSharedFlow<Resource<CharDataClass>>
-    val dataPIDcfgWindup:MutableSharedFlow<Resource<CharDataClass>>
     val dataPIDcfgDterm:MutableSharedFlow<Resource<CharDataClass>>
-    val dataPIDcfgDlpfterm:MutableSharedFlow<Resource<CharDataClass>>
-    val dataPIDcfgGainterm:MutableSharedFlow<Resource<CharDataClass>>
+    val dataPIDcfgPboost:MutableSharedFlow<Resource<CharDataClass>>
+    val dataPIDcfgIboost:MutableSharedFlow<Resource<CharDataClass>>
 
     fun reconnect()
 
@@ -59,10 +58,9 @@ interface RemoteControlReceiveManager
     fun txWritePidPTerm(value: Float)
     fun txWritePidITerm(value: Float)
     fun txWritePidIMax(value: Float)
-    fun txWritePidWindup(value: Float)
     fun txWritePidDTerm(value: Float)
-    fun txWritePidDLpf(value: Float)
-    fun txWritePidGain(value: Float)
+    fun txWritePidPBoost(value: Float)
+    fun txWritePidIBoost(value: Float)
 
     suspend fun rxReadPIDConfiguration()
     // Reads all 8 machine UUIDs (boiler target temp + steam setpoint + 6 brew params) in a

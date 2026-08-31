@@ -3,7 +3,7 @@
 > **Diagram file:** [diagram.mermaid](diagram.mermaid) — pure `flowchart LR` swimlane diagram (`.mermaid` format, no markdown wrapper).
 
 **Trigger:** The screen is navigated to (composable first shown) **or** the user taps the **Read** button.  
-**Ends:** All 7 PID parameter text fields are populated with values read from the BLE device.
+**Ends:** All 6 PID parameter text fields are populated with values read from the BLE device.
 
 > The READ on this screen is largely **automatic**: `LaunchedEffect(viewModel.connectionState)` calls `rxReadPIDConfiguration()` the moment the BLE connection is `Connected`.
 
@@ -38,9 +38,9 @@ sequenceDiagram
     VM->>BLEMgr: rxReadPIDConfiguration()
     activate BLEMgr
 
-    Note over BLEMgr: Builds sequential queue (7 PID characteristics)<br/>Order (read first → last):<br/>1. P Term  (…1501)<br/>2. I Term  (…1502)<br/>3. I Max   (…1503)<br/>4. Windup  (…1504)<br/>5. D Term  (…1505)<br/>6. D LPF   (…1506)<br/>7. Gain    (…1507)
+    Note over BLEMgr: Builds sequential queue (6 PID characteristics)<br/>Order (read first → last):<br/>1. P Term   (…1501)<br/>2. I Term   (…1502)<br/>3. I Max    (…1503)<br/>4. D Term   (…1504)<br/>5. P Boost  (…1505)<br/>6. I Boost  (…1506)
 
-    BLEMgr->>GATT: readCharacteristic(P Term) ← index 6
+    BLEMgr->>GATT: readCharacteristic(P Term) ← index 5
 
     loop For each PID characteristic (tail → head)
         GATT-->>BLEMgr: onCharacteristicRead(uuid, ASCII bytes)
@@ -68,25 +68,22 @@ sequenceDiagram
     and
         VM->>VM: dataPIDcfgImaxterm → pIDConfigData.cfgImaxterm
     and
-        VM->>VM: dataPIDcfgWindup  → pIDConfigData.cfgWindup
-    and
         VM->>VM: dataPIDcfgDterm   → pIDConfigData.cfgDterm
     and
-        VM->>VM: dataPIDcfgDlpfterm → pIDConfigData.cfgDlpfterm
+        VM->>VM: dataPIDcfgPboost  → pIDConfigData.cfgPboost
     and
-        VM->>VM: dataPIDcfgGainterm → pIDConfigData.cfgGainterm
+        VM->>VM: dataPIDcfgIboost  → pIDConfigData.cfgIboost
     end
 
     Screen->>Screen: LaunchedEffect(Unit) collects pidConfigLoaded
     Screen->>Screen: cPterm_TB.loadValue(cfgPterm)
     Screen->>Screen: cIterm_TB.loadValue(cfgIterm)
     Screen->>Screen: cIlimit_TB.loadValue(cfgImaxterm)
-    Screen->>Screen: cIwindup_TB.loadValue(cfgWindup)
     Screen->>Screen: cDterm_TB.loadValue(cfgDterm)
-    Screen->>Screen: cLPFterm_TB.loadValue(cfgDlpfterm)
-    Screen->>Screen: cGainterm_TB.loadValue(cfgGainterm)
+    Screen->>Screen: cPboost_TB.loadValue(cfgPboost)
+    Screen->>Screen: cIboost_TB.loadValue(cfgIboost)
 
-    Note over Screen: All 7 CTextBox fields show current PID values.<br/>modified = false for each.
+    Note over Screen: All 6 CTextBox fields show current PID values.<br/>modified = false for each.
 ```
 
 ---
@@ -117,8 +114,7 @@ sequenceDiagram
 | `dataPIDcfgPterm` | `CharDataClass` | `pIDConfigData.cfgPterm` |
 | `dataPIDcfgIterm` | `CharDataClass` | `pIDConfigData.cfgIterm` |
 | `dataPIDcfgImaxterm` | `CharDataClass` | `pIDConfigData.cfgImaxterm` |
-| `dataPIDcfgWindup` | `CharDataClass` | `pIDConfigData.cfgWindup` |
 | `dataPIDcfgDterm` | `CharDataClass` | `pIDConfigData.cfgDterm` |
-| `dataPIDcfgDlpfterm` | `CharDataClass` | `pIDConfigData.cfgDlpfterm` |
-| `dataPIDcfgGainterm` | `CharDataClass` | `pIDConfigData.cfgGainterm` |
+| `dataPIDcfgPboost` | `CharDataClass` | `pIDConfigData.cfgPboost` |
+| `dataPIDcfgIboost` | `CharDataClass` | `pIDConfigData.cfgIboost` |
 | `pidConfigReadComplete` | `Unit` (signal) | triggers `_pidConfigLoaded` |

@@ -151,7 +151,7 @@ The BLEspresso app follows **MVVM (Model-View-ViewModel)** with a clean separati
 │    BoilerSetpoint       → targetTemperature + connectionState   │
 │    CharDataClass        → charData (Float) + connectionState    │
 │    C_BrewConfigData     → 6 brew phase parameters               │
-│    C_PIDConfigData      → 7 PID controller parameters           │
+│    C_PIDConfigData      → 6 PID controller parameters           │
 │    ConnectionState      → Uninitialized / CurrentlyInitializing │
 │                           / Connected / Disconnected            │
 │    Resource<T>          → Success / Loading / Error wrapper     │

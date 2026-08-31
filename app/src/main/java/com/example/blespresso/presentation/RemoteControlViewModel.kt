@@ -239,18 +239,6 @@ class  RemoteControlViewModel @Inject constructor(
                 }
             }
         }
-        //ViewScope → Collect data from char: BLE_CHAR_PID_I_TERM_WINDUP_UUID
-        viewModelScope.launch {
-            remoteControlReceiveManager.dataPIDcfgWindup.collectLatest { result ->
-                when (result) {
-                    //Video1 -> TimeStamp: 1:09:30
-                    is Resource.Success -> {
-                        connectionState = result.data.connectionState
-                        pIDConfigData.cfgWindup = result.data.charData
-                    }
-                }
-            }
-        }
         //ViewScope → Collect data from char: BLE_CHAR_PID_D_TERM_UUID
         viewModelScope.launch {
             remoteControlReceiveManager.dataPIDcfgDterm.collectLatest { result ->
@@ -263,26 +251,26 @@ class  RemoteControlViewModel @Inject constructor(
                 }
             }
         }
-        //ViewScope → Collect data from char: BLE_CHAR_PID_D_TERM_LPF_UUID
+        //ViewScope → Collect data from char: BLE_CHAR_PID_P_BOOST_UUID
         viewModelScope.launch {
-            remoteControlReceiveManager.dataPIDcfgDlpfterm.collectLatest { result ->
+            remoteControlReceiveManager.dataPIDcfgPboost.collectLatest { result ->
                 when (result) {
                     //Video1 -> TimeStamp: 1:09:30
                     is Resource.Success -> {
                         connectionState = result.data.connectionState
-                        pIDConfigData.cfgDlpfterm = result.data.charData
+                        pIDConfigData.cfgPboost = result.data.charData
                     }
                 }
             }
         }
-        //ViewScope → Collect data from char: BLE_CHAR_PID_GAIN___UUID
+        //ViewScope → Collect data from char: BLE_CHAR_PID_I_BOOST_UUID
         viewModelScope.launch {
-            remoteControlReceiveManager.dataPIDcfgGainterm.collectLatest { result ->
+            remoteControlReceiveManager.dataPIDcfgIboost.collectLatest { result ->
                 when (result) {
                     //Video1 -> TimeStamp: 1:09:30
                     is Resource.Success -> {
                         connectionState = result.data.connectionState
-                        pIDConfigData.cfgGainterm = result.data.charData
+                        pIDConfigData.cfgIboost = result.data.charData
                     }
                 }
             }
@@ -338,10 +326,9 @@ class  RemoteControlViewModel @Inject constructor(
     fun txWritePidPTerm(value: Float)  = remoteControlReceiveManager.txWritePidPTerm(value)
     fun txWritePidITerm(value: Float)  = remoteControlReceiveManager.txWritePidITerm(value)
     fun txWritePidIMax(value: Float)   = remoteControlReceiveManager.txWritePidIMax(value)
-    fun txWritePidWindup(value: Float) = remoteControlReceiveManager.txWritePidWindup(value)
     fun txWritePidDTerm(value: Float)  = remoteControlReceiveManager.txWritePidDTerm(value)
-    fun txWritePidDLpf(value: Float)   = remoteControlReceiveManager.txWritePidDLpf(value)
-    fun txWritePidGain(value: Float)   = remoteControlReceiveManager.txWritePidGain(value)
+    fun txWritePidPBoost(value: Float) = remoteControlReceiveManager.txWritePidPBoost(value)
+    fun txWritePidIBoost(value: Float) = remoteControlReceiveManager.txWritePidIBoost(value)
 
     fun rxReadMachineConfiguration() {
         // TLDR: Replaced delay(1500L) with a proper completion signal. The BLE manager now emits
@@ -371,17 +358,16 @@ class  RemoteControlViewModel @Inject constructor(
     //       A null argument means "not modified" — skip that field. Returns true if at least one write was issued
     //       so the composable can show the appropriate toast.
     fun writePIDConfig(
-        pTerm: Float?, iTerm: Float?, iMax: Float?, windup: Float?,
-        dTerm: Float?, dLpf: Float?, gain: Float?
+        pTerm: Float?, iTerm: Float?, iMax: Float?,
+        dTerm: Float?, pBoost: Float?, iBoost: Float?
     ): Boolean {
         var anyModified = false
         pTerm?.let  { txWritePidPTerm(it);  Log.d("RemoteCtrlViewModel", "P Term: $it -> Saved");   anyModified = true }
         iTerm?.let  { txWritePidITerm(it);  Log.d("RemoteCtrlViewModel", "I Term: $it -> Saved");   anyModified = true }
         iMax?.let   { txWritePidIMax(it);   Log.d("RemoteCtrlViewModel", "I Max: $it -> Saved");    anyModified = true }
-        windup?.let { txWritePidWindup(it); Log.d("RemoteCtrlViewModel", "I Windup: $it -> Saved"); anyModified = true }
         dTerm?.let  { txWritePidDTerm(it);  Log.d("RemoteCtrlViewModel", "D Term: $it -> Saved");   anyModified = true }
-        dLpf?.let   { txWritePidDLpf(it);   Log.d("RemoteCtrlViewModel", "D LPF: $it -> Saved");    anyModified = true }
-        gain?.let   { txWritePidGain(it);   Log.d("RemoteCtrlViewModel", "Gain: $it -> Saved");     anyModified = true }
+        pBoost?.let { txWritePidPBoost(it); Log.d("RemoteCtrlViewModel", "P Boost: $it -> Saved");  anyModified = true }
+        iBoost?.let { txWritePidIBoost(it); Log.d("RemoteCtrlViewModel", "I Boost: $it -> Saved");  anyModified = true }
         return anyModified
     }
 
@@ -430,10 +416,9 @@ class  RemoteControlViewModel @Inject constructor(
         const val PID_P_MIN = 0f;       const val PID_P_MAX = 100f
         const val PID_I_MIN = 0f;       const val PID_I_MAX = 20f
         const val PID_ILIMIT_MIN = 0f;  const val PID_ILIMIT_MAX = 500f
-        const val PID_WINDUP_MIN = 0f;  const val PID_WINDUP_MAX = 1f
         const val PID_D_MIN = 0f;       const val PID_D_MAX = 10f
-        const val PID_LPF_MIN = 5f;     const val PID_LPF_MAX = 250f
-        const val PID_GAIN_MIN = 0f;    const val PID_GAIN_MAX = 100f
+        const val PID_PBOOST_MIN = 0f;  const val PID_PBOOST_MAX = 10f
+        const val PID_IBOOST_MIN = 0f;  const val PID_IBOOST_MAX = 20f
         // Machine configuration bounds
         const val BOILER_TEMP_MIN = 0f;   const val BOILER_TEMP_MAX = 150f
         const val STEAM_TEMP_MIN = 100f;  const val STEAM_TEMP_MAX = 145f

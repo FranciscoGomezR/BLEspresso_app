@@ -8,21 +8,21 @@ flowchart LR
     subgraph screen["🖥️ BlespressoCtrlParamScreen"]
         direction LR
         S_DETECT["detectTapGestures\nonDoubleTap handler"]
-        S_CHECK["Pass value if modified and not blank\nelse pass null\nfor 7 PID fields"]
+        S_CHECK["Pass value if modified and not blank\nelse pass null\nfor 6 PID fields"]
         S_RESET["reset modified = false\nfor each written CTextBox"]
         S_TOAST["Toast: Sending modified PID configuration\nor No fields modified"]
     end
 
     subgraph vm["📊 ViewModel — RemoteControlViewModel"]
         direction LR
-        VM_WRITE["writePIDConfig(\npTerm / iTerm / iMax\nwindup / dTerm / dLpf / gain)"]
+        VM_WRITE["writePIDConfig(\npTerm / iTerm / iMax\ndTerm / pBoost / iBoost)"]
         VM_SKIP["Skip null fields\nnot modified"]
-        VM_TX["txWritePidPTerm\ntxWritePidITerm\ntxWritePidIMax\ntxWritePidWindup\ntxWritePidDTerm\ntxWritePidDLpf\ntxWritePidGain"]
+        VM_TX["txWritePidPTerm\ntxWritePidITerm\ntxWritePidIMax\ntxWritePidDTerm\ntxWritePidPBoost\ntxWritePidIBoost"]
     end
 
     subgraph mgr["📡 BLE Manager — RemoteControlBLEReceiveManager"]
         direction LR
-        M_ENC["writeCharacteristic\nFloat to ASCII fixed-width\nP:4 I:3 IMax:4 Windup:1\nD:3 LPF:4 Gain:4 digits"]
+        M_ENC["writeCharacteristic\nFloat to ASCII fixed-width\nP:4 I:3 IMax:4\nD:3 PBoost:3 IBoost:3 digits"]
         M_FIND["findCharacteristic\nPID_SERVICE_UUID + charUUID"]
         M_WRITE["writeCharacteristicsDevice\ngatt.writeCharacteristic\nWRITE_TYPE_NO_RESPONSE"]
         M_CB["onCharacteristicWrite\nGATT_SUCCESS logged per UUID"]
@@ -30,7 +30,7 @@ flowchart LR
 
     subgraph gatt["🔵 BLE Device — GATT PID Service 0x1500"]
         direction LR
-        G_PID["0x1501 P / 0x1502 I\n0x1503 I_Max / 0x1504 Windup\n0x1505 D / 0x1506 LPF\n0x1507 Gain\nCharacteristic values updated"]
+        G_PID["0x1501 P / 0x1502 I\n0x1503 I_Max / 0x1504 D\n0x1505 P_Boost / 0x1506 I_Boost\nCharacteristic values updated"]
     end
 
     U_EDIT --> U_WRITE

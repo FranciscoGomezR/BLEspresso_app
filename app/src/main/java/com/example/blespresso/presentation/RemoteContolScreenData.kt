@@ -92,8 +92,7 @@ class C_PIDConfigData {
     var cfgPterm: Float = 0.0f
     var cfgIterm: Float = 0.0f
     var cfgImaxterm: Float = 0.0f
-    var cfgWindup: Float = 0.0f
     var cfgDterm: Float = 0.0f
-    var cfgDlpfterm: Float = 0.0f
-    var cfgGainterm: Float = 0.0f
+    var cfgPboost: Float = 0.0f
+    var cfgIboost: Float = 0.0f
 }
