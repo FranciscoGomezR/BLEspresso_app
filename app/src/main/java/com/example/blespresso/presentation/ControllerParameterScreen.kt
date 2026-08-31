@@ -657,7 +657,8 @@ fun BlespressoCtrlParamScreen(
                                 //       Now rxReadPIDConfiguration() emits pidConfigLoaded when data is ready, so
                                 //       the button only needs to call the ViewModel function.
                                 onClick = {
-                                    Toast.makeText(context, "Reading PID configuration\"", Toast.LENGTH_SHORT).show()
+                                    viewModel.rxReadPIDConfiguration()
+                                    Toast.makeText(context, "Reading PID configuration", Toast.LENGTH_SHORT).show()
                                 },
                                 colors = ButtonDefaults.buttonColors(backgroundColor = accent),
                                 modifier = Modifier

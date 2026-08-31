@@ -1,5 +1,6 @@
 # BLEspresso_app
 Project BLEspresso_app_git is an Android app to controll the BLEspresso controller
+Everyt time a developer or AID agent works on an item in this list shall update STATUS.md and CHANGELOG.md doc (Link TODO item to its log entry inside CHANGELOG.md for good tracebility)
 
 # TODO LIST
 - 1[x] Update project [BLEspresso_app_git] to match new gatt table for PID service (done 2026-08-29):
@@ -33,9 +34,10 @@ Project BLEspresso_app_git is an Android app to controll the BLEspresso controll
         | **S2+11** | Characteristic Declaration (`0x2803`) | — | Read, Write | 5 | Props + Handle + UUID | — | Declares `0x1506` |
         | **S2+12** | **Characteristic Value** | `0x1506` | Read, Write | 3 | 3-char ASCII (`XXD`, D=tenth) | `pid_Iboost` | Phase-1 integral-gain boost multiplier |
 
-- 2[] check the GATT from BLE device (confirm on ble_cus.c) identify the problem and propose a plan to fix on the Android app . 
+- 2[x] check the GATT from BLE device (confirm on ble_cus.c) identify the problem and propose a plan to fix on the Android app . 
         Problem: App tries to read 8 char but failed at 5th char. Also implement a logic that does not abort read operation but continues with next CHAR UUID.
         NOTE: the code was working previoues or it is known to work correctly.
+        See: docs/CHANGELOG.md -> "2026-09-01 — Machine-config read UUID fix + read-queue/screen-reentry hardening"
         ## Service 1 — BLEspresso Brew Service 
         **Service UUID:** `0x1400`  
         **Full UUID:** `f364adc9-b000-**1400**-ba50-05ca45bf8abc`  
@@ -70,6 +72,27 @@ Project BLEspresso_app_git is an Android app to controll the BLEspresso controll
         | **S1+23** | Characteristic Declaration (`0x2803`) | — | Read, Write | 5 | Props + Handle + UUID | — | Declares `0x140B` |
         | **S1+24** | **Characteristic Value** | `0x140B` | Read, Write | 3 | `XXD` ASCII (D=tenth s) | `profTaperingTmr` | Declining pressure duration |
         Logs when pressing "Read" Button: [attached]
+
+- 3[x] After fixing item 2, reading still misbehaves when navigating between screens: entering
+        ControllerParameterScreen right after using RemoteControlScreen's Read button causes the
+        PID (0x1500) table to get requested twice, BLE data callbacks fire 2-3x each for a single
+        notification, and the ControllerParameterScreen "Read" button does nothing when pressed.
+        Root cause: `RemoteControlViewModel.initiazeConnection()` has no re-entry guard and is
+        called from a `LaunchedEffect(Unit)` on every screen that mounts it; since the ViewModel is
+        shared across screens, each screen visit re-subscribes to every BLE flow (stacking
+        duplicate collectors on top of ones still running) and re-triggers `startConnection()` on
+        an already-connected device, which flaps `connectionState` and makes
+        `LaunchedEffect(connectionState)` in ControllerParameterScreen re-fire `rxReadPIDConfiguration()`
+        a second time. Separately, the "Read" button's `onClick` only showed a Toast and never
+        called `viewModel.rxReadPIDConfiguration()`.
+        Fix: guard `initiazeConnection()` with an `isConnectionInitialized` flag so subscribe/connect
+        only runs once per ViewModel lifetime; wire the "Read" button to actually call
+        `viewModel.rxReadPIDConfiguration()`.
+        Also root-caused/fixed as part of item 2's read-queue rework: two independent read
+        operations (machine config vs PID config) sharing one GATT read queue clobbered each
+        other when triggered close together, and a transient GATT-busy dispatch was treated as a
+        permanent per-characteristic failure instead of being retried.
+        See: docs/CHANGELOG.md -> "2026-09-01 — Machine-config read UUID fix + read-queue/screen-reentry hardening"
 
 - [ ] (SUPERSEDED — keep 3 B per the attribute table above; do not apply) change PID controller parameter Length mentioned below: 
         | UUID | Name | Char Declaration | Char Value | CCCD | CUDD | Properties | Val Len | Default |

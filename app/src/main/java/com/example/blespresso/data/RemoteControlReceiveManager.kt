@@ -63,8 +63,9 @@ interface RemoteControlReceiveManager
     fun txWritePidIBoost(value: Float)
 
     suspend fun rxReadPIDConfiguration()
-    // Reads all 8 machine UUIDs (boiler target temp + steam setpoint + 6 brew params) in a
-    // single GATT-safe sequential queue, replacing the three individual fire-and-forget calls.
+    // Reads the machine config UUIDs (active setpoint 0x1403, steam preset 0x1405, 6 brew params
+    // 0x1406-0x140B) in a single GATT-safe sequential queue. A failed/short char is skipped, not
+    // fatal; machineConfigReadComplete fires once the queue drains.
     suspend fun rxReadMachineConfiguration()
 
     // Emits Unit when the machine-config read queue drains completely.

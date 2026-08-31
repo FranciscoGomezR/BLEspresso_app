@@ -278,10 +278,20 @@ class  RemoteControlViewModel @Inject constructor(
 
     }
 
+    // Guards against re-entry: this ViewModel is shared across screens, and each screen calls
+    // initiazeConnection() from its own LaunchedEffect(Unit) on mount. Without this flag,
+    // navigating between screens re-subscribes to every BLE flow (stacking duplicate collectors
+    // on top of the still-running ones) and re-triggers startConnection() on an already-connected
+    // device, which flaps connectionState (Connected -> CurrentlyInitializing -> Connected) and
+    // makes screens keyed on it (e.g. LaunchedEffect(connectionState)) re-fire spuriously.
+    private var isConnectionInitialized = false
+
     //public function -> thi one can be call when al permission are granted from user
     //then we can init. connection
     // video 1-> Time-Stamp: 1:11:30
     fun initiazeConnection() {
+        if (isConnectionInitialized) return
+        isConnectionInitialized = true
         errorMessage = null
         subscribeToChanges()
         subscribeToReadOperation()

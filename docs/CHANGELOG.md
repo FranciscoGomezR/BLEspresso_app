@@ -10,6 +10,69 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-09-01 — Machine-config read UUID fix + read-queue/screen-reentry hardening
+
+`STATUS.md` TODO items 2 and 3. App's machine-config (`0x1400`) UUID map was off
+by two against the firmware GATT table, the sequential read queue could abort
+mid-chain or clobber a concurrent read op, and re-entering a screen silently
+duplicated BLE subscriptions and left the Controller screen's Read button inert.
+
+### Fixed
+- **Machine-config (`0x1400`) UUID map corrected** to match `ble_cus.h`/`ble_cus.c`:
+  steam preset moved `0x140A` -> `0x1405`; brew params shifted
+  `0x1404`-`0x1409` -> `0x1406`-`0x140B`; added missing `0x1404` brew-temp-preset
+  UUID (`txNewBoilerTargetTemp()` now writes both `0x1403` active setpoint and
+  `0x1404` preset so they stay in sync)
+  (`app/src/main/java/com/example/blespresso/data/ble/RemoteControlBLEReceiveManager.kt`).
+  Previously `0x140A` (declining-pressure power) was misread/mislabeled as
+  "steam setpoint", and the read chain crashed (`StringIndexOutOfBounds`) on the
+  5th characteristic because a mis-mapped UUID's digit-count parser didn't match
+  its actual payload length.
+- **`onCharacteristicRead` no longer aborts the whole read chain on one bad
+  characteristic** — checks `status == GATT_SUCCESS` before parsing, wraps the
+  parse in try/catch; a failed or malformed char is logged and skipped instead
+  of stopping subsequent reads.
+- **Read queue rewritten as a front-to-back `ArrayDeque`** built only from
+  characteristics that actually exist on the device (`startReadQueue()`),
+  replacing the previous hard-coded tail-index bookkeeping.
+  `rxReadMachineConfiguration()` / `rxReadPIDConfiguration()` now just declare
+  their UUID list.
+- **Two concurrent read operations no longer clobber each other.** Machine-config
+  and PID-config reads share one GATT read queue; if one is requested while the
+  other is in flight, it is now held as a single-slot `pendingReadRequest` and
+  auto-started once the current queue drains, instead of `readQueue.clear()`
+  silently dropping the in-flight op's remaining characteristics.
+- **Transient GATT-busy dispatch is retried, not treated as a permanent skip.**
+  `readCharacteristicsDevice()` now returns `DISPATCHED / BUSY / NOT_READABLE /
+  NOT_CONNECTED`; `BUSY` (stack has another op in flight — Android GATT allows
+  only one outstanding operation) retries the same characteristic up to 5x
+  (150 ms backoff) before giving up, instead of instantly burning through the
+  rest of the queue as "failed".
+- **`RemoteControlViewModel.initiazeConnection()` re-entry guard added**
+  (`isConnectionInitialized` flag) — it was called from a `LaunchedEffect(Unit)`
+  on every screen that mounts it, and since the ViewModel is shared across
+  screens, each screen visit re-subscribed to every BLE flow (stacking
+  duplicate collectors on top of the still-running ones — observed 2-3x
+  duplicate handling of a single BLE emission) and re-triggered
+  `startConnection()` on an already-connected device, flapping `connectionState`
+  and causing `LaunchedEffect(connectionState)` in `ControllerParameterScreen`
+  to re-fire `rxReadPIDConfiguration()` a second time
+  (`app/src/main/java/com/example/blespresso/presentation/RemoteControlViewModel.kt`).
+- **Controller screen "Read" button now actually reads.** `onClick` only showed
+  a Toast and never called `viewModel.rxReadPIDConfiguration()`
+  (`app/src/main/java/com/example/blespresso/presentation/ControllerParameterScreen.kt`).
+
+### Removed
+- Dead `characteristicToReadQueue` / `characteristicToReadQueueIndex` /
+  `characteristicToReadFLAG` fields and the commented-out
+  `rxReadBrewConfiguration()` block
+  (`.../data/ble/RemoteControlBLEReceiveManager.kt`).
+
+### Docs
+- `STATUS.md` TODO items 2 and 3 marked done.
+
+---
+
 ## 2026-08-29 — PID Service characteristic rework
 
 Mirrors the firmware-side PID Service (`0x1500`) rework. App now implements **6**

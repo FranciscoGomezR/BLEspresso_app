@@ -20,6 +20,7 @@ import com.example.blespresso.data.RemoteControlReceiveManager
 import com.example.blespresso.utilities.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -50,22 +51,26 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     private val SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID =
         "00001403-00b0-4240-ba50-05ca45bf8abc"
 
-    // new steam setpoint characteristic (ends in 140A)
+    // MCU GATT (ble_cus.h): 0x1403 active setpoint, 0x1404 brew preset, 0x1405 steam preset,
+    // 0x1406 pre-inf pwr(3B), 0x1407 pre-inf time(3B), 0x1408 inf pwr(4B), 0x1409 inf time(3B),
+    // 0x140A declining pwr(4B), 0x140B declining time(3B).
+    private val BREW_TEMP_PRESET_CHARACTERISTICS_UUID =
+        "00001404-00b0-4240-ba50-05ca45bf8abc"
     private val STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID =
-        "0000140a-00b0-4240-ba50-05ca45bf8abc"
+        "00001405-00b0-4240-ba50-05ca45bf8abc"
 
     private val BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID =     //Default value = 35.0%         → 3 digits
-        "00001404-00b0-4240-ba50-05ca45bf8abc"
-    private val BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID =     //Default value = 5.0 seconds   → 3 digits
-        "00001405-00b0-4240-ba50-05ca45bf8abc"
-    private val BLE_CHAR_BREW_INFUSION_POWER_UUID =         //Default value = 99.0%         → 4 digits
         "00001406-00b0-4240-ba50-05ca45bf8abc"
-    private val BLE_CHAR_BREW_INFUSION_TIME__UUID =         //Default value = 5.0 seconds   → 3 digits
+    private val BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID =     //Default value = 5.0 seconds   → 3 digits
         "00001407-00b0-4240-ba50-05ca45bf8abc"
-    private val BLE_CHAR_BREW_DECLINING_PR_POWER_UUID =     //Default value = 80.0%         → 4 digits
+    private val BLE_CHAR_BREW_INFUSION_POWER_UUID =         //Default value = 99.0%         → 4 digits
         "00001408-00b0-4240-ba50-05ca45bf8abc"
-    private val BLE_CHAR_BREW_DECLINING_PR_TIME__UUID =     //Default value = 10.0 seconds  → 3 digits
+    private val BLE_CHAR_BREW_INFUSION_TIME__UUID =         //Default value = 5.0 seconds   → 3 digits
         "00001409-00b0-4240-ba50-05ca45bf8abc"
+    private val BLE_CHAR_BREW_DECLINING_PR_POWER_UUID =     //Default value = 80.0%         → 4 digits
+        "0000140a-00b0-4240-ba50-05ca45bf8abc"
+    private val BLE_CHAR_BREW_DECLINING_PR_TIME__UUID =     //Default value = 10.0 seconds  → 3 digits
+        "0000140b-00b0-4240-ba50-05ca45bf8abc"
 
     private val CONTROL_PID_SERVICE_UUID =
         "00001500-00b0-4240-ba50-05ca45bf8abc"
@@ -83,12 +88,30 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     private val BLE_CHAR_PID_I_BOOST_UUID =
         "00001506-00b0-4240-ba50-05ca45bf8abc"
 
-    private var characteristicToReadQueue = ArrayList<Any>()
-    private var characteristicToReadQueueIndex: Int = 0
-    private var characteristicToReadFLAG: Boolean = true
+    // Sequential GATT read queue. Read front-to-back; one bad/failed char is logged and skipped,
+    // it never aborts the chain. Completion signal fires once the queue drains.
+    // The front element stays in the queue while its read is in flight / being retried, and is
+    // only popped once its callback fires (or it's permanently given up on) - this is what lets a
+    // BUSY dispatch be retried without losing the char's place in line.
+    private val readQueue = ArrayDeque<BluetoothGattCharacteristic>()
+    private var isReadingQueue: Boolean = false
+    private var currentReadRetryCount: Int = 0
+    private val MAX_READ_RETRIES = 5
+    private val READ_RETRY_DELAY_MSECS = 150L
 
     private enum class ActiveReadOperation { NONE, MACHINE_CONFIG, PID_CONFIG }
     private var activeReadOperation = ActiveReadOperation.NONE
+
+    // Android's GATT stack allows only one outstanding operation at a time. If a second read
+    // operation (machine config vs PID config) is requested while one is already in flight, it is
+    // held here and started automatically once the current one drains - instead of clobbering the
+    // in-flight queue.
+    private data class PendingReadRequest(
+        val op: ActiveReadOperation,
+        val serviceUuid: String,
+        val charUuids: List<String>
+    )
+    private var pendingReadRequest: PendingReadRequest? = null
 
     private val _machineConfigReadComplete = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val machineConfigReadComplete: SharedFlow<Unit> = _machineConfigReadComplete.asSharedFlow()
@@ -257,7 +280,17 @@ class RemoteControlBLEReceiveManager @Inject constructor(
             var rxTimeValue : CharDataClass = CharDataClass(0.0f, ConnectionState.Uninitialized)
             var rxPIDValue : CharDataClass = CharDataClass(0.0f, ConnectionState.Uninitialized)
 
-            Log.d("BLERxManager_BREW_CFG", "Read uuid: ${characteristic.uuid}")
+            Log.d("BLERxManager_BREW_CFG", "Read uuid: ${characteristic.uuid} status=$status")
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                Log.w("BLERxManager_BREW_CFG", "Read FAILED status=$status uuid=${characteristic.uuid} - skipping")
+                if (isReadingQueue) {
+                    readQueue.removeFirstOrNull()
+                    currentReadRetryCount = 0
+                    readNextInQueue()
+                }
+                return
+            }
+            try {
             with(characteristic)
             {
                 when(uuid)
@@ -467,32 +500,13 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                     else -> Unit
                 }
             }
-            println(characteristicToReadFLAG)
-            if(characteristicToReadFLAG)
-            {
-                println(characteristicToReadQueue.size)
-                characteristicToReadQueue.remove(characteristicToReadQueue.get(characteristicToReadQueueIndex))
-                println(characteristicToReadQueue.size)
-                if(characteristicToReadQueue.size >= 0)
-                {
-                    characteristicToReadQueueIndex--
-                    if (characteristicToReadQueueIndex == -1) {
-                        Log.d("BLEReceiverManager2", "Complete")
-                        characteristicToReadFLAG = false
-                        coroutineScope.launch {
-                            when (activeReadOperation) {
-                                ActiveReadOperation.MACHINE_CONFIG -> _machineConfigReadComplete.emit(Unit)
-                                ActiveReadOperation.PID_CONFIG     -> _pidConfigReadComplete.emit(Unit)
-                                ActiveReadOperation.NONE           -> Unit
-                            }
-                            activeReadOperation = ActiveReadOperation.NONE
-                        }
-                    }
-                    else {
-                        Log.d("BLEReceiverManager2", "Read Next CHAR")
-                        readCharacteristicsDevice( characteristicToReadQueue.get(characteristicToReadQueueIndex) as BluetoothGattCharacteristic)
-                    }
-                }
+            } catch (e: Exception) {
+                Log.e("BLERxManager_BREW_CFG", "Parse error uuid=${characteristic.uuid}: ${e.message}")
+            }
+            if (isReadingQueue) {
+                readQueue.removeFirstOrNull()
+                currentReadRetryCount = 0
+                readNextInQueue()
             }
         }
 
@@ -596,18 +610,99 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         } ?: error("Not connected to a BLE device!")
     }
 
-    private fun readCharacteristicsDevice(characteristic: BluetoothGattCharacteristic)
+    private enum class ReadDispatchResult { DISPATCHED, NOT_READABLE, BUSY, NOT_CONNECTED }
+
+    /** Attempts to dispatch a read. BUSY means the GATT stack has another op in flight - transient,
+     *  worth retrying. NOT_READABLE/NOT_CONNECTED are permanent for this characteristic. */
+    private fun readCharacteristicsDevice(characteristic: BluetoothGattCharacteristic): ReadDispatchResult
     {
-        //Log.d("BLEReceiverManager2", "readCharacteristicsDevice call")
-        gatt?.let { gatt ->
-            // Check if the characteristic supports reading
-            if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ != 0) {
-                gatt.readCharacteristic(characteristic)
-            } else {
-                error("Characteristic ${characteristic.uuid} does not support reading.")
+        val g = gatt
+        if (g == null) {
+            Log.w("BLEReceiverManager2", "readCharacteristicsDevice: not connected")
+            return ReadDispatchResult.NOT_CONNECTED
+        }
+        if (characteristic.properties and BluetoothGattCharacteristic.PROPERTY_READ == 0) {
+            Log.w("BLEReceiverManager2", "Characteristic ${characteristic.uuid} does not support reading.")
+            return ReadDispatchResult.NOT_READABLE
+        }
+        return if (g.readCharacteristic(characteristic)) ReadDispatchResult.DISPATCHED else ReadDispatchResult.BUSY
+    }
+
+    /** Drives the sequential read queue. The front element is only popped once its callback fires
+     *  (see onCharacteristicRead) or it's permanently given up on here; a BUSY dispatch is retried
+     *  in place after a short delay instead of being treated as a failure. On drain, emits the
+     *  matching completion signal, then starts any pending read request that arrived meanwhile. */
+    private fun readNextInQueue() {
+        val next = readQueue.firstOrNull()
+        if (next == null) {
+            isReadingQueue = false
+            currentReadRetryCount = 0
+            val op = activeReadOperation
+            activeReadOperation = ActiveReadOperation.NONE
+            Log.d("BLEReceiverManager2", "Read queue complete ($op)")
+            coroutineScope.launch {
+                when (op) {
+                    ActiveReadOperation.MACHINE_CONFIG -> _machineConfigReadComplete.emit(Unit)
+                    ActiveReadOperation.PID_CONFIG     -> _pidConfigReadComplete.emit(Unit)
+                    ActiveReadOperation.NONE           -> Unit
+                }
             }
-        } ?: error("Not connected to a BLE device!")
-        //Log.d("BLEReceiverManager2", "readCharacteristicsDevice call Finish")
+            val pending = pendingReadRequest
+            if (pending != null) {
+                pendingReadRequest = null
+                Log.d("BLEReceiverManager2", "Starting pending read request (${pending.op})")
+                startReadQueue(pending.op, pending.serviceUuid, pending.charUuids)
+            }
+            return
+        }
+        when (readCharacteristicsDevice(next)) {
+            ReadDispatchResult.DISPATCHED -> {
+                currentReadRetryCount = 0
+                Log.d("BLEReceiverManager2", "Read Next CHAR: ${next.uuid}")
+                // wait for onCharacteristicRead callback to pop this element and advance
+            }
+            ReadDispatchResult.BUSY -> {
+                currentReadRetryCount++
+                if (currentReadRetryCount <= MAX_READ_RETRIES) {
+                    Log.w("BLEReceiverManager2", "GATT busy, retry $currentReadRetryCount/$MAX_READ_RETRIES for ${next.uuid}")
+                    coroutineScope.launch {
+                        delay(READ_RETRY_DELAY_MSECS)
+                        readNextInQueue()
+                    }
+                } else {
+                    Log.e("BLEReceiverManager2", "GATT busy, giving up on ${next.uuid} after $MAX_READ_RETRIES retries")
+                    readQueue.removeFirstOrNull()
+                    currentReadRetryCount = 0
+                    readNextInQueue()
+                }
+            }
+            ReadDispatchResult.NOT_READABLE, ReadDispatchResult.NOT_CONNECTED -> {
+                Log.w("BLEReceiverManager2", "permanently skipping ${next.uuid}")
+                readQueue.removeFirstOrNull()
+                currentReadRetryCount = 0
+                readNextInQueue()
+            }
+        }
+    }
+
+    /** Builds the queue from whatever characteristics actually exist and starts reading. If a read
+     *  operation is already in flight, holds this request as pending instead of clobbering it. */
+    private fun startReadQueue(op: ActiveReadOperation, serviceUuid: String, charUuids: List<String>) {
+        if (isReadingQueue) {
+            Log.w("BLEReceiverManager2", "Read op ($op) requested while (${activeReadOperation}) in flight - queued as pending")
+            pendingReadRequest = PendingReadRequest(op, serviceUuid, charUuids)
+            return
+        }
+        activeReadOperation = op
+        readQueue.clear()
+        for (u in charUuids) {
+            val c = findCharacteristic(serviceUuid, u)
+            if (c != null) readQueue.add(c)
+            else Log.w("BLEReceiverManager2", "char not found on device, skipping: $u")
+        }
+        isReadingQueue = true
+        currentReadRetryCount = 0
+        readNextInQueue()
     }
 
     //video1 - timestamp: 51:05
@@ -666,7 +761,11 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     }
 
     // TLDR: Writes the new boiler target temperature to the device (4-digit ASCII format, e.g. 93.5°C → "0935").
-    override fun txNewBoilerTargetTemp(newTarget: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID, newTarget, 4)
+    //       Also updates the persisted brew preset (0x1404) so it tracks the active setpoint.
+    override fun txNewBoilerTargetTemp(newTarget: Float) {
+        writeCharacteristic(CONTROL_SERVICE_UUID, SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID, newTarget, 4)
+        writeCharacteristic(CONTROL_SERVICE_UUID, BREW_TEMP_PRESET_CHARACTERISTICS_UUID, newTarget, 4)
+    }
     // TLDR: Writes the new steam temperature setpoint to the device (4-digit ASCII format, e.g. 140.0°C → "1400").
     override fun txNewSteamTempSetpoint(newTarget: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID, newTarget, 4)
 
@@ -701,58 +800,37 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     //       boiler target temp → steam setpoint → 6 brew params (pre-infusion, infusion, declining).
     //       Queue is processed tail-to-head via onCharacteristicRead callbacks.
     override suspend fun rxReadMachineConfiguration() {
-        activeReadOperation = ActiveReadOperation.MACHINE_CONFIG
-        characteristicToReadFLAG = true
-        characteristicToReadQueue.clear()
-        // Items are added with the last-to-read at index 0; queue is consumed from the tail.
-        val uuidsToRead = listOf(
-            BLE_CHAR_BREW_DECLINING_PR_TIME__UUID,    // idx 0 – read last
-            BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,    // idx 1
-            BLE_CHAR_BREW_INFUSION_TIME__UUID,        // idx 2
-            BLE_CHAR_BREW_INFUSION_POWER_UUID,        // idx 3
-            BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,    // idx 4
-            BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID,    // idx 5
-            STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID, // idx 6
-            SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID  // idx 7 – read first
+        Log.d("BLE_rxMachineCfg", "About to READ machine configuration characteristics")
+        startReadQueue(
+            ActiveReadOperation.MACHINE_CONFIG,
+            CONTROL_SERVICE_UUID,
+            listOf(
+                SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID, // 0x1403 active setpoint
+                STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID, // 0x1405 steam preset
+                BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID,    // 0x1406
+                BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,    // 0x1407
+                BLE_CHAR_BREW_INFUSION_POWER_UUID,        // 0x1408
+                BLE_CHAR_BREW_INFUSION_TIME__UUID,        // 0x1409
+                BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,    // 0x140A
+                BLE_CHAR_BREW_DECLINING_PR_TIME__UUID     // 0x140B
+            )
         )
-        for (uuid in uuidsToRead) {
-            val characteristic = findCharacteristic(CONTROL_SERVICE_UUID, uuid)
-            if (characteristic != null) {
-                println(characteristic)
-                characteristicToReadQueue.add(characteristic)
-                println(characteristicToReadQueue.size)
-            }
-        }
-        Log.d("BLE_rxMachineCfg", "About to READ all 8 machine configuration characteristics")
-        characteristicToReadQueueIndex = 7
-        readCharacteristicsDevice(characteristicToReadQueue.get(characteristicToReadQueueIndex) as BluetoothGattCharacteristic)
     }
 
     override suspend fun rxReadPIDConfiguration(){
-        activeReadOperation = ActiveReadOperation.PID_CONFIG
-        characteristicToReadFLAG = true
-        characteristicToReadQueue.clear()
-        val characteristicsPIDToRead = listOf(
-            BLE_CHAR_PID_I_BOOST_UUID,
-            BLE_CHAR_PID_P_BOOST_UUID,
-            BLE_CHAR_PID_D_TERM_UUID,
-            BLE_CHAR_PID_I_MAX_TERM_UUID,
-            BLE_CHAR_PID_I_TERM_UUID,
-            BLE_CHAR_PID_P_TERM_UUID
-        )
-        for (characteristicUuid in characteristicsPIDToRead) {
-            val charToRead = findCharacteristic(CONTROL_PID_SERVICE_UUID, characteristicUuid )
-            //println(charToRead)
-            if (charToRead != null) {
-                println(charToRead)
-                characteristicToReadQueue.add(charToRead as BluetoothGattCharacteristic)
-                println(characteristicToReadQueue.size)
-            }
-        }
-
         Log.d("BLE_rxTargetTemp", "About to READ PID configuration")
-        characteristicToReadQueueIndex = 5
-        readCharacteristicsDevice( characteristicToReadQueue.get(characteristicToReadQueueIndex) as BluetoothGattCharacteristic)
+        startReadQueue(
+            ActiveReadOperation.PID_CONFIG,
+            CONTROL_PID_SERVICE_UUID,
+            listOf(
+                BLE_CHAR_PID_P_TERM_UUID,
+                BLE_CHAR_PID_I_TERM_UUID,
+                BLE_CHAR_PID_I_MAX_TERM_UUID,
+                BLE_CHAR_PID_D_TERM_UUID,
+                BLE_CHAR_PID_P_BOOST_UUID,
+                BLE_CHAR_PID_I_BOOST_UUID
+            )
+        )
     }
 
 
@@ -866,28 +944,3 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     }
 
 }
-/*
-    override suspend fun rxReadBrewConfiguration(){
-        characteristicToReadFLAG = true
-        characteristicToReadQueue.clear()
-        val characteristicsToRead = listOf(
-            BLE_CHAR_BREW_DECLINING_PR_TIME__UUID,
-            BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,
-            BLE_CHAR_BREW_INFUSION_TIME__UUID,
-            BLE_CHAR_BREW_INFUSION_POWER_UUID,
-            BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,
-            BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID
-        )
-        for (characteristicUuid in characteristicsToRead) {
-            val characteristicToRead = findCharacteristic(CONTROL_SERVICE_UUID, characteristicUuid)
-            println(characteristicToRead)
-            if (characteristicToRead != null) {
-                //println(characteristicUuid)
-                characteristicToReadQueue.add(characteristicToRead)
-            }
-        }
-        Log.d("BLE_rxTargetTemp", "About to READ brew configuration")
-        characteristicToReadQueueIndex = 5
-        readCharacteristicsDevice( characteristicToReadQueue.get(characteristicToReadQueueIndex) as BluetoothGattCharacteristic)
-    }
-*/
