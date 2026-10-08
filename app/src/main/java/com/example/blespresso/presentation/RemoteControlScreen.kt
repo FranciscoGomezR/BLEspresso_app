@@ -137,12 +137,12 @@ fun RemoteControlScreen(
 
     var MoveToOtherScreen by remember { mutableStateOf(false) }
 
-    // TLDR: Replaced 18 lines of per-field min/max assignments (e.g. cBoilerTB.maxInValue = 150.0f) that scattered
+    // TLDR: Replaced 18 lines of per-field min/max assignments (e.g. cBrewTempPresetTB.maxInValue = 150.0f) that scattered
     //       domain knowledge across the composable. Now bounds are read from RemoteControlViewModel companion object
     //       constants so both screens share a single source of truth for all parameter ranges.
-    val cBoilerTB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.BOILER_TEMP_MIN; maxInValue = RemoteControlViewModel.BOILER_TEMP_MAX } }
+    val cBrewTempPresetTB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.BREW_TEMP_PRESET_MIN; maxInValue = RemoteControlViewModel.BREW_TEMP_PRESET_MAX } }
 
-    val cSteamTempTB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.STEAM_TEMP_MIN; maxInValue = RemoteControlViewModel.STEAM_TEMP_MAX } }
+    val cSteamTempPresetTB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.STEAM_TEMP_PRESET_MIN; maxInValue = RemoteControlViewModel.STEAM_TEMP_PRESET_MAX } }
 
     var cPreinfusionPWR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PRE_INF_PWR_MIN; maxInValue = RemoteControlViewModel.PRE_INF_PWR_MAX } }
     var cPreinfusionTMR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.PRE_INF_TMR_MIN; maxInValue = RemoteControlViewModel.PRE_INF_TMR_MAX } }
@@ -214,8 +214,8 @@ fun RemoteControlScreen(
     LaunchedEffect(Unit) {
         viewModel.machineConfigLoaded.collect {
             Log.d("ScreenBREWconfiguration", "PASS INFO TO TEXTBOX")
-            cBoilerTB.loadValue(viewModel.boilerSetpointTemp.toString())
-            cSteamTempTB.loadValue(viewModel.steamTempSetpoint.toString())
+            cBrewTempPresetTB.loadValue(viewModel.brewTempPreset.toString())
+            cSteamTempPresetTB.loadValue(viewModel.steamTempPreset.toString())
             cPreinfusionPWR_TB.loadValue(viewModel.brewConfigData.PreInfussionPwr.toString())
             cPreinfusionTMR_TB.loadValue(viewModel.brewConfigData.PreInfussionTmr.toString())
             cInfusionPWR_TB.loadValue(viewModel.brewConfigData.InfussionPwr.toString())
@@ -328,7 +328,7 @@ fun RemoteControlScreen(
                                 .size(280.dp)
                                 .background(background_indic),
                             boilerWaterTemp = viewModel.boilerWaterTemp,
-                            boilerTargetTemp = viewModel.boilerSetpointTemp,
+                            boilerTempSetpoint = viewModel.boilerTempSetpoint,
                             primaryColor = accent_indic,
                             secondaryColor = surface_indic,
                             primaryTextColor = textprimary_indic,
@@ -394,10 +394,10 @@ fun RemoteControlScreen(
                             Column( // 2 COLUMN → Target Temperature text------------------------
                                 modifier = Modifier.weight(2f).padding(start = 15.dp, top = 2.dp)
                             ) {
-                                Text( text = "(0 - 100°C)",
+                                Text( text = "(${RemoteControlViewModel.BREW_TEMP_PRESET_MIN.toInt()} - ${RemoteControlViewModel.BREW_TEMP_PRESET_MAX.toInt()}°C)",
                                     style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary, fontStyle = FontStyle.Italic), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
                                 )
-                                Text( text = "(100 - 140°C)",
+                                Text( text = "(${RemoteControlViewModel.STEAM_TEMP_PRESET_MIN.toInt()} - ${RemoteControlViewModel.STEAM_TEMP_PRESET_MAX.toInt()}°C)",
                                     style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary, fontStyle = FontStyle.Italic), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
                                 )
                             }
@@ -411,29 +411,29 @@ fun RemoteControlScreen(
                                 //       The logic was moved into CTextBox methods so it lives with the data it
                                 //       operates on, and the global helper functions in RemoteControlScreen.kt were removed.
                                 BasicTextField(
-                                    value = cBoilerTB.userInput,
+                                    value = cBrewTempPresetTB.userInput,
                                     onValueChange = { newText ->
-                                        cBoilerTB.onValueChange(newText) },
+                                        cBrewTempPresetTB.onValueChange(newText) },
                                     cursorBrush = SolidColor(Unspecified),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically)
                                                         .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        cBoilerTB.onDone()
+                                        cBrewTempPresetTB.onDone()
                                         keyboardController?.hide() })
                                 )
                                 BasicTextField(
-                                    value = cSteamTempTB.userInput,
+                                    value = cSteamTempPresetTB.userInput,
                                     onValueChange = { newText ->
-                                        cSteamTempTB.onValueChange(newText) },
+                                        cSteamTempPresetTB.onValueChange(newText) },
                                     cursorBrush = SolidColor(Unspecified),
                                     textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
                                     modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically)
                                         .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
-                                        cSteamTempTB.onDone()
+                                        cSteamTempPresetTB.onDone()
                                         keyboardController?.hide() })
                                 )
                             }
@@ -708,8 +708,8 @@ fun RemoteControlScreen(
                                                     /* Handle button click → WRITE Brew & Temperature Configuration */
                                                     keyboardController?.hide()
                                                     val anyModified = viewModel.writeMachineConfig(
-                                                        boilerTemp = if (cBoilerTB.modified         && cBoilerTB.userInput.text.isNotBlank())         cBoilerTB.userInput.text.toFloat()         else null,
-                                                        steamTemp  = if (cSteamTempTB.modified       && cSteamTempTB.userInput.text.isNotBlank())       cSteamTempTB.userInput.text.toFloat()       else null,
+                                                        brewTempPreset  = if (cBrewTempPresetTB.modified    && cBrewTempPresetTB.userInput.text.isNotBlank())         cBrewTempPresetTB.userInput.text.toFloat()         else null,
+                                                        steamTempPreset = if (cSteamTempPresetTB.modified       && cSteamTempPresetTB.userInput.text.isNotBlank())       cSteamTempPresetTB.userInput.text.toFloat()       else null,
                                                         preInfPwr  = if (cPreinfusionPWR_TB.modified  && cPreinfusionPWR_TB.userInput.text.isNotBlank())  cPreinfusionPWR_TB.userInput.text.toFloat()  else null,
                                                         preInfTmr  = if (cPreinfusionTMR_TB.modified  && cPreinfusionTMR_TB.userInput.text.isNotBlank())  cPreinfusionTMR_TB.userInput.text.toFloat()  else null,
                                                         infPwr     = if (cInfusionPWR_TB.modified     && cInfusionPWR_TB.userInput.text.isNotBlank())     cInfusionPWR_TB.userInput.text.toFloat()     else null,
@@ -718,7 +718,7 @@ fun RemoteControlScreen(
                                                         declTmr    = if (cDeclinPrTMR_TB.modified     && cDeclinPrTMR_TB.userInput.text.isNotBlank())     cDeclinPrTMR_TB.userInput.text.toFloat()     else null,
                                                     )
                                                     if (anyModified) {
-                                                        listOf(cBoilerTB, cSteamTempTB, cPreinfusionPWR_TB, cPreinfusionTMR_TB,
+                                                        listOf(cBrewTempPresetTB, cSteamTempPresetTB, cPreinfusionPWR_TB, cPreinfusionTMR_TB,
                                                                cInfusionPWR_TB, cInfusionTMR_TB, cDeclinPrPWR_TB, cDeclinPrTMR_TB
                                                         ).forEach { it.modified = false }
                                                         Toast.makeText(context, "Sending modified configuration", Toast.LENGTH_LONG).show()

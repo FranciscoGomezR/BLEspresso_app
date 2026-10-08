@@ -94,6 +94,57 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         permanent per-characteristic failure instead of being retried.
         See: docs/CHANGELOG.md -> "2026-09-01 — Machine-config read UUID fix + read-queue/screen-reentry hardening"
 
+- 4[x] Check that changes made on the app to resolve TODO item 2 and item 3 did not break the logic for the WRITE button in both screen.kt or if the code for these buttons need to be update. Read CHANGELOG.md to support assessment.
+        Result: Write button wiring in RemoteControlScreen.kt and ControllerParameterScreen.kt is
+        unchanged and correct - both still call ViewModel.writeMachineConfig()/writePIDConfig(),
+        which now point at the item-2-corrected UUIDs. No update needed there.
+        See: docs/CHANGELOG.md -> "2026-09-01 — Machine-config read UUID fix + read-queue/screen-reentry hardening"
+
+- 4.1[x] Risk found while assessing item 4: item 2's fix made `txNewBoilerTargetTemp()` fire TWO
+        back-to-back `gatt.writeCharacteristic()` calls (0x1403 active setpoint, then 0x1404 brew
+        preset) with no serialization. `writeCharacteristicsDevice()` discarded the boolean return
+        of `gatt.writeCharacteristic()` - Android's GATT stack allows only one outstanding
+        operation at a time, so if the 0x1404 write dispatched while the 0x1403 write was still in
+        flight, it silently failed (no exception, no log, `onCharacteristicWrite` for 0x1404 never
+        fires) while the "Write" button still showed "Sending modified configuration" as if it
+        succeeded. Same class of bug as the read-side BUSY issue fixed in item 2/3, just never
+        applied to writes.
+        Fix: writeCharacteristicsDevice() now returns a WriteDispatchResult (mirrors
+        ReadDispatchResult); BUSY dispatches retry (150ms backoff, 5x cap) instead of being
+        dropped; txNewBoilerTargetTemp() chains the 0x1404 write to fire only after the 0x1403
+        write actually dispatches.
+        See: docs/CHANGELOG.md -> "2026-09-03 — Write-path BUSY-drop fix (boiler temp + preset sync)"
+  
+- 5[x]   Sync with firmware TODO #23 (gaggia_controller_git): 0x1403 active boiler setpoint is now
+        READ + NOTIFY (write removed). Firmware sets it from 0x1404 brewTempDegC / 0x1405
+        steamTempDegC on BREW/STEAM switch change and notifies it.
+        Changes needed:
+        - txNewBoilerTargetTemp(): drop 0x1403 write (now rejected: write not permitted);
+          write 0x1404 brew preset only. 
+        - Rename -> 0x1404 = brew_temp_preset; 0x1405 = steam_temp_preset.
+        - Enable CCCD notify on 0x1403 (same as 0x1402 water temp); handle it in
+          onCharacteristicChanged and emit to dataToRead flow.
+        - Keep 0x1403 READ in initial sync sequence.
+        - GATT handles shift: new 0x1403 CCCD adds one attribute, so all Brew-service attributes
+          after it move +1. Lookup by UUID is fine; clear cached GATT (refresh / re-pair)
+          if the phone cached the old table.
+        - Upon a 0x1403 notification arrives, it needs to be refresh in the boilerTemperatureProgressIndicator
+        - UI: active setpoint read-only display by boilerTemperatureProgressIndicator(boilerTargetTemp:Float). propose a common name to sync 0x1403 and boilerTargetTemp paramter of boilerTemperatureProgressIndicator().
+        - Extra context info to be considered: 0x1401 will be a read + notify char that will notify to the APP 
+          the status of the machine. at the end the app has to subscribe to 0x1401, 0x1402 & 0x1403 notifications. Currently RemoteControlScreen does not have anything implemented yet.
+          nothing to do on regard this sub-point, just informative.
+        Done: common name boilerTempSetpoint (0x1403 const, VM state, indicator param); presets
+        brewTempPreset / steamTempPreset; CCCD queue [0x1402, 0x1403] (add 0x1401 in #24);
+        brew textbox now loaded from 0x1404.
+        See: docs/CHANGELOG.md -> "2026-10-07 — Sync with firmware TODO #23: 0x1403 READ + NOTIFY (STATUS TODO #5)"
+
+- []    Block WRITE buttons / tx* calls while machine brewing or steaming. Steaming can be
+          inferred from 0x1403 notify (setpoint == steam preset); brewing needs firmware
+          TODO #24 status notify (0x1401).
+- []    what onMtuChanged does? explain
+- []
+
+
 - [ ] (SUPERSEDED — keep 3 B per the attribute table above; do not apply) change PID controller parameter Length mentioned below: 
         | UUID | Name | Char Declaration | Char Value | CCCD | CUDD | Properties | Val Len | Default |
         |---|---|---|---|---|---|---|---|---|

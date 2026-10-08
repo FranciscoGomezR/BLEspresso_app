@@ -32,11 +32,16 @@ class  RemoteControlViewModel @Inject constructor(
     var boilerWaterTemp by mutableStateOf(0f)
         private set
 
-    var boilerSetpointTemp by mutableStateOf(0f)
+    // 0x1403 active boiler setpoint: display only (boilerTemperatureProgressIndicator).
+    // Set by firmware from the presets on BREW/STEAM switch change (READ + NOTIFY).
+    var boilerTempSetpoint by mutableStateOf(0f)
+        private set
+
+    // 0x1404 brew / 0x1405 steam temperature presets (editable)
+    var brewTempPreset by mutableStateOf(0f)
         public set
 
-    // new value for steam temperature received from BLE
-    var steamTempSetpoint by mutableStateOf(0f)
+    var steamTempPreset by mutableStateOf(0f)
         public set
 
     var brewConfigData by mutableStateOf(C_BrewConfigData())
@@ -83,19 +88,6 @@ class  RemoteControlViewModel @Inject constructor(
                 }
             }
         }
-        /*
-        viewModelScope.launch {
-            remoteControlReceiveManager.dataToRead.collect  { result ->
-                when (result) {
-                    //Video1 -> TimeStamp: 1:09:30
-                    is Resource.Success -> {
-                        connectionState = result.data.connectionState
-                        boilerSetpointTemp = result.data.targetTemperature
-                    }
-                }
-            }
-        }
-         */
     }
 
     private fun subscribeToReadOperation() {
@@ -105,18 +97,29 @@ class  RemoteControlViewModel @Inject constructor(
                     //Video1 -> TimeStamp: 1:09:30
                     is Resource.Success -> {
                         connectionState = result.data.connectionState
-                        boilerSetpointTemp = result.data.targetTemperature
+                        boilerTempSetpoint = result.data.targetTemperature
                     }
                 }
             }
         }
-        // collect steam setpoint from BLE characteristic
+        // collect brew temperature preset (0x1404)
         viewModelScope.launch {
-            remoteControlReceiveManager.dataSteamSetpoint.collectLatest { result ->
+            remoteControlReceiveManager.dataBrewTempPreset.collectLatest { result ->
                 when (result) {
                     is Resource.Success -> {
                         connectionState = result.data.connectionState
-                        steamTempSetpoint = result.data.targetTemperature
+                        brewTempPreset = result.data.targetTemperature
+                    }
+                }
+            }
+        }
+        // collect steam temperature preset (0x1405)
+        viewModelScope.launch {
+            remoteControlReceiveManager.dataSteamTempPreset.collectLatest { result ->
+                when (result) {
+                    is Resource.Success -> {
+                        connectionState = result.data.connectionState
+                        steamTempPreset = result.data.targetTemperature
                     }
                 }
             }
@@ -307,23 +310,26 @@ class  RemoteControlViewModel @Inject constructor(
         //remoteControlReceiveManager.sendCommandtoDrone(throttle,rollAngle,pitchAngle,false)
     }
 
-    fun txNewBoilerTargetTemp(value: Float) {
-        boilerSetpointTemp = value
-        remoteControlReceiveManager.txNewBoilerTargetTemp(value)
+    fun txNewBrewTempPreset(value: Float) {
+        brewTempPreset = value
+        remoteControlReceiveManager.txNewBrewTempPreset(value)
     }
 
-    fun txNewSteamTempSetpoint(value: Float) {
-        steamTempSetpoint = value
-        remoteControlReceiveManager.txNewSteamTempSetpoint(value)
+    fun txNewSteamTempPreset(value: Float) {
+        steamTempPreset = value
+        remoteControlReceiveManager.txNewSteamTempPreset(value)
     }
 
-    fun rxNewBoilerTargetTemp() {
-        remoteControlReceiveManager.rxReadBoilerTargetTemp()
+    fun rxReadBoilerTempSetpoint() {
+        remoteControlReceiveManager.rxReadBoilerTempSetpoint()
     }
 
-    // request updated steam setpoint from BLE device
-    fun rxReadSteamTempSetpoint() {
-        remoteControlReceiveManager.rxReadSteamTempSetpoint()
+    fun rxReadBrewTempPreset() {
+        remoteControlReceiveManager.rxReadBrewTempPreset()
+    }
+
+    fun rxReadSteamTempPreset() {
+        remoteControlReceiveManager.rxReadSteamTempPreset()
     }
 
     fun txWritePreInfusionPwr(value: Float) = remoteControlReceiveManager.txWritePreInfusionPwr(value)
@@ -386,14 +392,14 @@ class  RemoteControlViewModel @Inject constructor(
     //       modified, non-null for fields to write. Logging is also centralised here instead of being spread
     //       across the composable.
     fun writeMachineConfig(
-        boilerTemp: Float?, steamTemp: Float?,
+        brewTempPreset: Float?, steamTempPreset: Float?,
         preInfPwr: Float?, preInfTmr: Float?,
         infPwr: Float?,    infTmr: Float?,
         declPwr: Float?,   declTmr: Float?
     ): Boolean {
         var anyModified = false
-        boilerTemp?.let { txNewBoilerTargetTemp(it);  Log.d("RemoteCtrlViewModel", "Brew Temp: $it -> Saved");        anyModified = true }
-        steamTemp?.let  { txNewSteamTempSetpoint(it); Log.d("RemoteCtrlViewModel", "Steam Temp: $it -> Saved");       anyModified = true }
+        brewTempPreset?.let  { txNewBrewTempPreset(it);  Log.d("RemoteCtrlViewModel", "Brew Temp Preset: $it -> Saved");  anyModified = true }
+        steamTempPreset?.let { txNewSteamTempPreset(it); Log.d("RemoteCtrlViewModel", "Steam Temp Preset: $it -> Saved"); anyModified = true }
         preInfPwr?.let  { txWritePreInfusionPwr(it);  Log.d("RemoteCtrlViewModel", "Pre-Inf Pwr: $it -> Saved");      anyModified = true }
         preInfTmr?.let  { txWritePreInfusionTmr(it);  Log.d("RemoteCtrlViewModel", "Pre-Inf Tmr: $it -> Saved");      anyModified = true }
         infPwr?.let     { txWriteInfusionPwr(it);     Log.d("RemoteCtrlViewModel", "Infusion Pwr: $it -> Saved");      anyModified = true }
@@ -430,8 +436,10 @@ class  RemoteControlViewModel @Inject constructor(
         const val PID_PBOOST_MIN = 0f;  const val PID_PBOOST_MAX = 10f
         const val PID_IBOOST_MIN = 0f;  const val PID_IBOOST_MAX = 20f
         // Machine configuration bounds
-        const val BOILER_TEMP_MIN = 0f;   const val BOILER_TEMP_MAX = 150f
-        const val STEAM_TEMP_MIN = 100f;  const val STEAM_TEMP_MAX = 145f
+        // Brew/steam presets: must match firmware BREW_/STEAM_TEMP_MIN/MAX_DEGC
+        // (gaggia_controller_git espressoMachineServices.h); firmware rejects values outside.
+        const val BREW_TEMP_PRESET_MIN = 20f;    const val BREW_TEMP_PRESET_MAX = 110f
+        const val STEAM_TEMP_PRESET_MIN = 100f;  const val STEAM_TEMP_PRESET_MAX = 135f
         const val PRE_INF_PWR_MIN = 0f;   const val PRE_INF_PWR_MAX = 50f
         const val PRE_INF_TMR_MIN = 0f;   const val PRE_INF_TMR_MAX = 15f
         const val INF_PWR_MIN = 0f;       const val INF_PWR_MAX = 100f

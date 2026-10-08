@@ -48,15 +48,16 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         "00001401-00b0-4240-ba50-05ca45bf8abc"
     private val BOILER_WATER_TEMP_CHARACTERISTICS_UUID =
         "00001402-00b0-4240-ba50-05ca45bf8abc"
-    private val SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID =
+    private val BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID =
         "00001403-00b0-4240-ba50-05ca45bf8abc"
 
-    // MCU GATT (ble_cus.h): 0x1403 active setpoint, 0x1404 brew preset, 0x1405 steam preset,
+    // MCU GATT (ble_cus.h): 0x1403 active setpoint (READ + NOTIFY, set by BREW/STEAM switches),
+    // 0x1404 brew preset, 0x1405 steam preset,
     // 0x1406 pre-inf pwr(3B), 0x1407 pre-inf time(3B), 0x1408 inf pwr(4B), 0x1409 inf time(3B),
     // 0x140A declining pwr(4B), 0x140B declining time(3B).
     private val BREW_TEMP_PRESET_CHARACTERISTICS_UUID =
         "00001404-00b0-4240-ba50-05ca45bf8abc"
-    private val STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID =
+    private val STEAM_TEMP_PRESET_CHARACTERISTICS_UUID =
         "00001405-00b0-4240-ba50-05ca45bf8abc"
 
     private val BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID =     //Default value = 35.0%         → 3 digits
@@ -98,6 +99,19 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     private var currentReadRetryCount: Int = 0
     private val MAX_READ_RETRIES = 5
     private val READ_RETRY_DELAY_MSECS = 150L
+    private val MAX_WRITE_RETRIES = 5
+    private val WRITE_RETRY_DELAY_MSECS = 150L
+
+    // CCCD (0x2902) enable queue. Notifications must be re-enabled on every connection (firmware
+    // has no bonding). Android allows one GATT op at a time, so CCCD writes are chained through
+    // onDescriptorWrite instead of fired back-to-back (a second write would be silently dropped).
+    // Firmware TODO #24: add BLE_CHAR_BLESPRESSO_STATUS__UUID (0x1401) to this list.
+    private val CCCD_NOTIFY_UUIDS = listOf(
+        BOILER_WATER_TEMP_CHARACTERISTICS_UUID,     // 0x1402 water temp
+        BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID   // 0x1403 active setpoint
+    )
+    private val cccdQueue = ArrayDeque<String>()
+    private var currentCccdRetryCount: Int = 0
 
     private enum class ActiveReadOperation { NONE, MACHINE_CONFIG, PID_CONFIG }
     private var activeReadOperation = ActiveReadOperation.NONE
@@ -128,8 +142,9 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     override val dataBrewCfg___InfusionTmr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataBrewCfgDeclining__Pwr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataBrewCfgDeclining__Tmr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
-    // flow for new steam setpoint value
-    override val dataSteamSetpoint: MutableSharedFlow<Resource<BoilerSetpoint>> = MutableSharedFlow()
+    // flows for brew (0x1404) / steam (0x1405) temperature presets
+    override val dataBrewTempPreset: MutableSharedFlow<Resource<BoilerSetpoint>> = MutableSharedFlow()
+    override val dataSteamTempPreset: MutableSharedFlow<Resource<BoilerSetpoint>> = MutableSharedFlow()
 
     override val dataPIDcfgPterm:       MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataPIDcfgIterm:       MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
@@ -255,15 +270,25 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         }
 
         override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
-            val characteristic = findCharacteristic(CONTROL_SERVICE_UUID,BOILER_WATER_TEMP_CHARACTERISTICS_UUID)
-            if(characteristic == null)
+            if (findCharacteristic(CONTROL_SERVICE_UUID, BOILER_WATER_TEMP_CHARACTERISTICS_UUID) == null)
             {
                 coroutineScope.launch {
                     data.emit(Resource.Error(errorMessage = "Could not find boiler water temp characteristic"))
                 }
                 return
             }
-            enableNotification(characteristic)
+            cccdQueue.clear()
+            cccdQueue.addAll(CCCD_NOTIFY_UUIDS)
+            currentCccdRetryCount = 0
+            enableNextNotification()
+        }
+
+        // CCCD write finished -> enable the next notification in the queue.
+        override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
+            Log.d("BLE_Notification", "CCCD write uuid=${descriptor.characteristic.uuid} status=$status")
+            if (descriptor.uuid == UUID.fromString(CCCD_DESCRIPTOR_UUID)) {
+                enableNextNotification()
+            }
         }
 
         override fun onCharacteristicRead(
@@ -295,42 +320,27 @@ class RemoteControlBLEReceiveManager @Inject constructor(
             {
                 when(uuid)
                 {
-                    UUID.fromString(SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID)->{
-                        super.onCharacteristicRead(gatt, characteristic, status)
-                        rxString = characteristic?.getStringValue(0).toString()
-                        Log.d("BLEReceiverManager2", "I have read: $rxString")
-                        //Data format received from Bbyte is inLE device
-                        rxtemperature = (rxString[0].code - 48) * 100.0f
-                        rxtemperature += (rxString[1].code - 48) * 10.0f
-                        rxtemperature += (rxString[2].code - 48) * 1.0f
-                        rxtemperature += (rxString[3].code - 48) * 0.1f
-                        //write  data read from BLe device to "data" value
-                        //data is define in RemoteControlReceiveManager.kt
-                        val targetTemp = BoilerSetpoint(
-                            rxtemperature,
-                            ConnectionState.Connected)
-                        //write  data read from BLe device to "data" value
-                        //data is define in RemoteControlReceiveManaher.kt
+                    // 0x1403 active boiler setpoint -> boilerTemperatureProgressIndicator
+                    UUID.fromString(BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID)->{
+                        rxtemperature = parseTemp4(value)
                         coroutineScope.launch {
-                            dataToRead.emit(Resource.Success(data = targetTemp))
-                            //data.emit(Resource.Success(data = targetTemp))
+                            dataToRead.emit(Resource.Success(data = BoilerSetpoint(rxtemperature, ConnectionState.Connected)))
                         }
-                        Log.d("BLEReceiverManagerRX", "Target TEMPERATURE: $rxtemperature")
+                        Log.d("BLEReceiverManagerRX", "Boiler temp SETPOINT: $rxtemperature")
                     }
-                    UUID.fromString(STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID)->{
-                        super.onCharacteristicRead(gatt, characteristic, status)
-                        rxString = characteristic?.getStringValue(0).toString()
-                        Log.d("BLEReceiverManager2", "I have read steam setpoint: $rxString")
-                        // parse same way as boiler setpoint
-                        rxtemperature = (rxString[0].code - 48) * 100.0f
-                        rxtemperature += (rxString[1].code - 48) * 10.0f
-                        rxtemperature += (rxString[2].code - 48) * 1.0f
-                        rxtemperature += (rxString[3].code - 48) * 0.1f
-                        val steamTemp = BoilerSetpoint(
-                            rxtemperature,
-                            ConnectionState.Connected)
+                    // 0x1404 brew temperature preset
+                    UUID.fromString(BREW_TEMP_PRESET_CHARACTERISTICS_UUID)->{
+                        rxtemperature = parseTemp4(value)
                         coroutineScope.launch {
-                            dataSteamSetpoint.emit(Resource.Success(data = steamTemp))
+                            dataBrewTempPreset.emit(Resource.Success(data = BoilerSetpoint(rxtemperature, ConnectionState.Connected)))
+                        }
+                        Log.d("BLEReceiverManagerRX", "Brew temp PRESET: $rxtemperature")
+                    }
+                    // 0x1405 steam temperature preset
+                    UUID.fromString(STEAM_TEMP_PRESET_CHARACTERISTICS_UUID)->{
+                        rxtemperature = parseTemp4(value)
+                        coroutineScope.launch {
+                            dataSteamTempPreset.emit(Resource.Success(data = BoilerSetpoint(rxtemperature, ConnectionState.Connected)))
                         }
                         Log.d("BLEReceiverManagerRX", "Steam TEMPERATURE: $rxtemperature")
                     }
@@ -514,10 +524,10 @@ class RemoteControlBLEReceiveManager @Inject constructor(
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 with(characteristic) {
                     when (uuid) {
-                        UUID.fromString(SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID) ->
-                            Log.d("BLE_ManagerTX", "Boiler Target Temperature Write Successful")
-                        UUID.fromString(STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID) ->
-                            Log.d("BLE_ManagerTX", "Steam Temperature Setpoint Write Successful")
+                        UUID.fromString(BREW_TEMP_PRESET_CHARACTERISTICS_UUID) ->
+                            Log.d("BLE_ManagerTX", "Brew Temperature Preset Write Successful")
+                        UUID.fromString(STEAM_TEMP_PRESET_CHARACTERISTICS_UUID) ->
+                            Log.d("BLE_ManagerTX", "Steam Temperature Preset Write Successful")
                         UUID.fromString(BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID) ->
                             Log.d("BLE_ManagerTX", "BREW -PRE_INFUSION_POWER-> Write Successful")
                         UUID.fromString(BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID) ->
@@ -559,11 +569,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
             {
                 when(uuid){
                     UUID.fromString(BOILER_WATER_TEMP_CHARACTERISTICS_UUID)->{
-                        //Data format received from BLE device
-                        var temperature = (value[0].toInt() - 48) * 100.0f
-                        temperature += (value[1].toInt() - 48) * 10.0f
-                        temperature += (value[2].toInt() - 48) * 1.0f
-                        temperature += (value[3].toInt() - 48) * 0.1f
+                        val temperature = parseTemp4(value)
                         Log.d("BLEReceiverManager2", "$temperature")
                         val waterTemp = BoilerDataResult(
                             temperature,
@@ -572,6 +578,14 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                         //data is define in RemoteControlReceiveManaher.kt
                         coroutineScope.launch {
                             data.emit(Resource.Success(data = waterTemp))
+                        }
+                    }
+                    // 0x1403 active boiler setpoint: firmware notifies on BREW/STEAM switch change
+                    UUID.fromString(BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID)->{
+                        val setpoint = parseTemp4(value)
+                        Log.d("BLEReceiverManager2", "Boiler temp SETPOINT notify: $setpoint")
+                        coroutineScope.launch {
+                            dataToRead.emit(Resource.Success(data = BoilerSetpoint(setpoint, ConnectionState.Connected)))
                         }
                     }
                     UUID.fromString(BLE_CHAR_BLESPRESSO_STATUS__UUID)->{
@@ -584,30 +598,69 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         }
     }
 
-    // TLDR: Helper that encodes a Float to a fixed-width ASCII digit string and writes it
-    //       to the specified GATT characteristic via the given service and char UUIDs.
-    private fun writeCharacteristic(serviceUuid: String, charUuid: String, value: Float, digits: Int) {
-        val sb = StringBuilder()
-        dataConvertionFloatToCharacteristic(value, sb, digits)
-        var characteristicToWr = findCharacteristic(serviceUuid, charUuid)
-        if(characteristicToWr != null) {
-            writeCharacteristicsDevice(characteristicToWr, sb.toString().toByteArray())
+    private enum class WriteDispatchResult { DISPATCHED, NOT_CONNECTED, BUSY }
+
+    /** Attempts to dispatch a write. BUSY means the GATT stack has another op in flight -
+     *  transient, worth retrying (same hazard as the read side: Android allows only one
+     *  outstanding GATT operation at a time). */
+    private fun writeCharacteristicsDevice(characteristic: BluetoothGattCharacteristic, payload: ByteArray): WriteDispatchResult
+    {
+        val g = gatt
+        if (g == null) {
+            Log.w("BLEReceiverManager2", "writeCharacteristicsDevice: not connected")
+            return WriteDispatchResult.NOT_CONNECTED
+        }
+        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        characteristic.value = payload
+        // Convert the payload to a hex string and print it
+        val hexString = payload.joinToString(" ") { it.toString(16).padStart(2, '0') }
+        println("Characteristic UUID: ${characteristic.uuid}")
+        println("Payload (hex): $hexString")
+
+        return if (g.writeCharacteristic(characteristic)) WriteDispatchResult.DISPATCHED else WriteDispatchResult.BUSY
+    }
+
+    /** Dispatches a write, retrying on a transient BUSY result instead of silently dropping it
+     *  (mirrors the read queue's BUSY retry). Calls [onDone] once the write is dispatched or
+     *  retries are exhausted, so a caller can safely chain a follow-up write after this one has
+     *  left the stack instead of firing both at once. */
+    private fun writeWithRetry(
+        characteristic: BluetoothGattCharacteristic,
+        payload: ByteArray,
+        retryCount: Int = 0,
+        onDone: () -> Unit = {}
+    ) {
+        when (writeCharacteristicsDevice(characteristic, payload)) {
+            WriteDispatchResult.DISPATCHED, WriteDispatchResult.NOT_CONNECTED -> onDone()
+            WriteDispatchResult.BUSY -> {
+                if (retryCount < MAX_WRITE_RETRIES) {
+                    Log.w("BLEReceiverManager2", "GATT busy, retry ${retryCount + 1}/$MAX_WRITE_RETRIES for write ${characteristic.uuid}")
+                    coroutineScope.launch {
+                        delay(WRITE_RETRY_DELAY_MSECS)
+                        writeWithRetry(characteristic, payload, retryCount + 1, onDone)
+                    }
+                } else {
+                    Log.e("BLEReceiverManager2", "GATT busy, giving up on write ${characteristic.uuid} after $MAX_WRITE_RETRIES retries")
+                    onDone()
+                }
+            }
         }
     }
 
-    private fun writeCharacteristicsDevice(characteristic: BluetoothGattCharacteristic, payload: ByteArray)
-    {
-        gatt?.let {
-            gatt ->
-            characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-            characteristic.value = payload
-            // Convert the payload to a hex string and print it
-            val hexString = payload.joinToString(" ") { it.toString(16).padStart(2, '0') }
-            println("Characteristic UUID: ${characteristic.uuid}")
-            println("Payload (hex): $hexString")
-
-            gatt.writeCharacteristic(characteristic)
-        } ?: error("Not connected to a BLE device!")
+    // TLDR: Helper that encodes a Float to a fixed-width ASCII digit string and writes it
+    //       to the specified GATT characteristic via the given service and char UUIDs. Retries on
+    //       a transient GATT-busy dispatch instead of silently dropping the write; onDone lets a
+    //       caller chain a follow-up write after this one leaves the stack.
+    private fun writeCharacteristic(serviceUuid: String, charUuid: String, value: Float, digits: Int, onDone: () -> Unit = {}) {
+        val sb = StringBuilder()
+        dataConvertionFloatToCharacteristic(value, sb, digits)
+        val characteristicToWr = findCharacteristic(serviceUuid, charUuid)
+        if (characteristicToWr != null) {
+            writeWithRetry(characteristicToWr, sb.toString().toByteArray(), onDone = onDone)
+        } else {
+            Log.w("BLEReceiverManager2", "char not found on device, skipping write: $charUuid")
+            onDone()
+        }
     }
 
     private enum class ReadDispatchResult { DISPATCHED, NOT_READABLE, BUSY, NOT_CONNECTED }
@@ -705,32 +758,71 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         readNextInQueue()
     }
 
+    /** Pops the next char from cccdQueue and enables its notification. Advanced by
+     *  onDescriptorWrite; a BUSY CCCD write is retried in place (same backoff as reads/writes).
+     *  A char that is missing or has no CCCD is skipped. */
+    private fun enableNextNotification() {
+        val charUuid = cccdQueue.firstOrNull() ?: return
+        val characteristic = findCharacteristic(CONTROL_SERVICE_UUID, charUuid)
+        when (if (characteristic != null) enableNotification(characteristic) else CccdDispatchResult.SKIPPED) {
+            CccdDispatchResult.DISPATCHED -> {
+                cccdQueue.removeFirstOrNull()
+                currentCccdRetryCount = 0
+                // wait for onDescriptorWrite to advance
+            }
+            CccdDispatchResult.BUSY -> {
+                currentCccdRetryCount++
+                if (currentCccdRetryCount <= MAX_WRITE_RETRIES) {
+                    Log.w("BLE_Notification", "GATT busy, CCCD retry $currentCccdRetryCount/$MAX_WRITE_RETRIES for $charUuid")
+                    coroutineScope.launch {
+                        delay(WRITE_RETRY_DELAY_MSECS)
+                        enableNextNotification()
+                    }
+                } else {
+                    Log.e("BLE_Notification", "GATT busy, giving up CCCD for $charUuid")
+                    cccdQueue.removeFirstOrNull()
+                    currentCccdRetryCount = 0
+                    enableNextNotification()
+                }
+            }
+            CccdDispatchResult.SKIPPED -> {
+                Log.w("BLE_Notification", "No notifiable char/CCCD, skipping $charUuid")
+                cccdQueue.removeFirstOrNull()
+                currentCccdRetryCount = 0
+                enableNextNotification()
+            }
+        }
+    }
+
+    private enum class CccdDispatchResult { DISPATCHED, BUSY, SKIPPED }
+
     //video1 - timestamp: 51:05
-    private fun enableNotification(characteristic: BluetoothGattCharacteristic)
+    private fun enableNotification(characteristic: BluetoothGattCharacteristic): CccdDispatchResult
     {
         val cccdUuid = UUID.fromString(CCCD_DESCRIPTOR_UUID)
-        Log.d("BLE_Notification", "$cccdUuid")
         val payload = when {
             characteristic.isIndicatable() -> BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
             characteristic.isNotifiable() -> BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-            else -> return
+            else -> return CccdDispatchResult.SKIPPED
         }
-
-        characteristic.getDescriptor(cccdUuid)?.let { cccdDescriptor ->
-            if (gatt?.setCharacteristicNotification(characteristic, true) == false) {
-                Log.d("BLEReceiverManager", "Set characteristics notification failed")
-                return
-            }
-            writeDescriptor(cccdDescriptor, payload)
+        val cccdDescriptor = characteristic.getDescriptor(cccdUuid) ?: return CccdDispatchResult.SKIPPED
+        if (gatt?.setCharacteristicNotification(characteristic, true) != true) {
+            Log.d("BLEReceiverManager", "Set characteristics notification failed")
+            return CccdDispatchResult.SKIPPED
         }
+        return if (writeDescriptor(cccdDescriptor, payload)) CccdDispatchResult.DISPATCHED else CccdDispatchResult.BUSY
     }
 
-    private fun writeDescriptor(descriptor: BluetoothGattDescriptor, payload: ByteArray) {
-        gatt?.let { gatt ->
-            descriptor.value = payload
-            gatt.writeDescriptor(descriptor)
-        } ?: error("Not connected to a BLE device!")
+    /** Over-the-air CCCD write. false = not connected or GATT busy. */
+    private fun writeDescriptor(descriptor: BluetoothGattDescriptor, payload: ByteArray): Boolean {
+        val g = gatt ?: return false
+        descriptor.value = payload
+        return g.writeDescriptor(descriptor)
     }
+
+    /** Parses a 4-byte ASCII temperature "DDDd" (last digit = tenth) e.g. "0935" -> 93.5. */
+    private fun parseTemp4(bytes: ByteArray): Float =
+        (bytes[0] - 48) * 100.0f + (bytes[1] - 48) * 10.0f + (bytes[2] - 48) * 1.0f + (bytes[3] - 48) * 0.1f
 
     private fun findCharacteristic(serviceUUID: String, characteristicsUUID: String): BluetoothGattCharacteristic? {
         return gatt?.services?.find { service ->
@@ -742,32 +834,37 @@ class RemoteControlBLEReceiveManager @Inject constructor(
 
 
 
-    override fun rxReadBoilerTargetTemp()
+    override fun rxReadBoilerTempSetpoint()
     {
-        var characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID,SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID)
+        val characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID, BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID)
         if (characteristictoRead != null)
         {
-            Log.d("BLE_rxTargetTemp", "About to READ Target Temp")
+            Log.d("BLE_rxTargetTemp", "About to READ Boiler Temp Setpoint")
             readCharacteristicsDevice(characteristictoRead)
         }
     }
 
-    override fun rxReadSteamTempSetpoint() {
-        var characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID)
+    override fun rxReadBrewTempPreset() {
+        val characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID, BREW_TEMP_PRESET_CHARACTERISTICS_UUID)
         if (characteristictoRead != null) {
-            Log.d("BLE_rxSteamTemp", "About to READ Steam Setpoint")
+            Log.d("BLE_rxBrewTemp", "About to READ Brew Temp Preset")
             readCharacteristicsDevice(characteristictoRead)
         }
     }
 
-    // TLDR: Writes the new boiler target temperature to the device (4-digit ASCII format, e.g. 93.5°C → "0935").
-    //       Also updates the persisted brew preset (0x1404) so it tracks the active setpoint.
-    override fun txNewBoilerTargetTemp(newTarget: Float) {
-        writeCharacteristic(CONTROL_SERVICE_UUID, SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID, newTarget, 4)
-        writeCharacteristic(CONTROL_SERVICE_UUID, BREW_TEMP_PRESET_CHARACTERISTICS_UUID, newTarget, 4)
+    override fun rxReadSteamTempPreset() {
+        val characteristictoRead = findCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_PRESET_CHARACTERISTICS_UUID)
+        if (characteristictoRead != null) {
+            Log.d("BLE_rxSteamTemp", "About to READ Steam Temp Preset")
+            readCharacteristicsDevice(characteristictoRead)
+        }
     }
-    // TLDR: Writes the new steam temperature setpoint to the device (4-digit ASCII format, e.g. 140.0°C → "1400").
-    override fun txNewSteamTempSetpoint(newTarget: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID, newTarget, 4)
+
+    // TLDR: Writes the brew temperature preset 0x1404 (4-digit ASCII format, e.g. 93.5°C → "0935").
+    //       0x1403 (active setpoint) is READ + NOTIFY only: firmware sets it from the presets.
+    override fun txNewBrewTempPreset(newTarget: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, BREW_TEMP_PRESET_CHARACTERISTICS_UUID, newTarget, 4)
+    // TLDR: Writes the steam temperature preset 0x1405 (4-digit ASCII format, e.g. 140.0°C → "1400").
+    override fun txNewSteamTempPreset(newTarget: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, STEAM_TEMP_PRESET_CHARACTERISTICS_UUID, newTarget, 4)
 
     // TLDR: Writes pre-infusion pump power % to device (3-digit format, e.g. 35.0% → "350").
     override fun txWritePreInfusionPwr(value: Float) = writeCharacteristic(CONTROL_SERVICE_UUID, BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID,     value, 3)
@@ -796,8 +893,8 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     // TLDR: Writes PID phase-1 integral-gain boost multiplier to device (3-digit format, e.g. 6.5 → "065").
     override fun txWritePidIBoost(value: Float) = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_BOOST_UUID,       value, 3)
 
-    // TLDR: Reads all 8 machine-configuration UUIDs in a single GATT-safe sequential queue:
-    //       boiler target temp → steam setpoint → 6 brew params (pre-infusion, infusion, declining).
+    // TLDR: Reads all 9 machine-configuration UUIDs in a single GATT-safe sequential queue:
+    //       boiler temp setpoint → brew preset → steam preset → 6 brew params.
     //       Queue is processed tail-to-head via onCharacteristicRead callbacks.
     override suspend fun rxReadMachineConfiguration() {
         Log.d("BLE_rxMachineCfg", "About to READ machine configuration characteristics")
@@ -805,8 +902,9 @@ class RemoteControlBLEReceiveManager @Inject constructor(
             ActiveReadOperation.MACHINE_CONFIG,
             CONTROL_SERVICE_UUID,
             listOf(
-                SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID, // 0x1403 active setpoint
-                STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID, // 0x1405 steam preset
+                BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID, // 0x1403 active setpoint
+                BREW_TEMP_PRESET_CHARACTERISTICS_UUID,     // 0x1404 brew preset
+                STEAM_TEMP_PRESET_CHARACTERISTICS_UUID,    // 0x1405 steam preset
                 BLE_CHAR_BREW_PRE_INFUSION_POWER_UUID,    // 0x1406
                 BLE_CHAR_BREW_PRE_INFUSION_TIME__UUID,    // 0x1407
                 BLE_CHAR_BREW_INFUSION_POWER_UUID,        // 0x1408
@@ -861,27 +959,11 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         gatt?.disconnect()
     }
     // vide 1-> Time-Stamp: 53:00
+    // No CCCD disable writes: firmware (no bonding) resets every CCCD on disconnect.
     override fun closeConnection() {
         bleScanner.stopScan(scanCallback)
-        val characteristic = findCharacteristic(CONTROL_SERVICE_UUID,SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID)
-        if (characteristic != null)
-        {
-            disconnectCharacteristic(characteristic)
-        }
+        cccdQueue.clear()
         gatt?.close()
-    }
-    // vide 1-> Time-Stamp: 56:00
-    private fun disconnectCharacteristic(characteristic: BluetoothGattCharacteristic)
-    {
-        val cccdUuid = UUID.fromString(CCCD_DESCRIPTOR_UUID)
-        characteristic.getDescriptor(cccdUuid)?.let {cccdDescriptor ->
-            if (gatt?.setCharacteristicNotification(characteristic, false) == false)
-            {
-                Log.d("TempHumidReceiveManager","Set characteristics notifications failed!")
-                return
-            }
-            writeDescriptor(cccdDescriptor,BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)
-        }
     }
 
     private fun dataConvertionFloatToCharacteristic(data: Float, charTxData: StringBuilder, txStringDigits: Int)

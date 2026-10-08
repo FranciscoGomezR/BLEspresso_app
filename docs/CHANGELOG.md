@@ -10,6 +10,85 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-10-07 — Brew/steam preset limits = firmware limits, range label generated
+
+Why: app accepted brew 0–150 / steam 100–145 °C, label showed 0–100 / 100–140 °C, firmware
+accepts 20–110 / 100–135 °C. Out-of-range writes were rejected by firmware without feedback.
+
+### Changed
+- `RemoteControlViewModel.kt`: `BOILER_TEMP_MIN/MAX` -> `BREW_TEMP_PRESET_MIN/MAX` (20/110),
+  `STEAM_TEMP_MIN/MAX` -> `STEAM_TEMP_PRESET_MIN/MAX` (100/135), matching firmware
+  `espressoMachineServices.h`.
+- `RemoteControlScreen.kt`: range labels built from those constants; `cBoilerTB` ->
+  `cBrewTempPresetTB`, `cSteamTempTB` -> `cSteamTempPresetTB`.
+
+## 2026-10-07 — Sync with firmware TODO #23: 0x1403 READ + NOTIFY (STATUS TODO #5)
+
+Firmware now sets the active boiler setpoint (0x1403) from the brew (0x1404) / steam (0x1405)
+presets on BREW/STEAM switch change and notifies it; 0x1403 is no longer writable.
+
+### Changed
+- `RemoteControlBLEReceiveManager.kt`: notifications enabled for 0x1402 **and** 0x1403 through a
+  CCCD queue (`CCCD_NOTIFY_UUIDS`, `enableNextNotification()`, new `onDescriptorWrite`), one CCCD
+  write at a time, BUSY retried (150 ms, 5x). Firmware TODO #24: add 0x1401 to the list.
+- 0x1403 notify -> `dataToRead` -> `boilerTempSetpoint` -> `BoilerTemperatureProgressIndicator`.
+- Machine-config read queue now also reads 0x1404 (`dataBrewTempPreset`).
+- Brew textbox loads from 0x1404 `brewTempPreset` (was 0x1403: while steaming it would show and
+  save the steam temp into the brew preset).
+- `parseTemp4()` replaces 4 copies of the ASCII "DDDd" temperature parse.
+
+### Renamed
+- 0x1403: `SET_NEW_BOILER_TEMP_CHARACTERISTICS_UUID` -> `BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID`;
+  VM `boilerSetpointTemp` -> `boilerTempSetpoint` (private set); indicator param
+  `boilerTargetTemp` -> `boilerTempSetpoint`; `rxReadBoilerTargetTemp` -> `rxReadBoilerTempSetpoint`.
+- Presets: `txNewBoilerTargetTemp` -> `txNewBrewTempPreset` (single 0x1404 write, no 0x1403);
+  `txNewSteamTempSetpoint` -> `txNewSteamTempPreset`; `rxReadSteamTempSetpoint` ->
+  `rxReadSteamTempPreset` (+ new `rxReadBrewTempPreset`); `dataSteamSetpoint` ->
+  `dataSteamTempPreset`; `STEAM_TEMP_SETPOINT_CHARACTERISTICS_UUID` ->
+  `STEAM_TEMP_PRESET_CHARACTERISTICS_UUID`; VM `steamTempSetpoint` -> `steamTempPreset`;
+  `writeMachineConfig(boilerTemp, steamTemp, ...)` -> `(brewTempPreset, steamTempPreset, ...)`.
+
+### Removed
+- `closeConnection()` CCCD disable write (`disconnectCharacteristic`): it targeted 0x1403 (no CCCD
+  until now -> no-op); firmware resets CCCDs on disconnect.
+- Dead commented `dataToRead` collector in `RemoteControlViewModel.subscribeToChanges()`.
+
+### Breaking / action
+- Requires firmware with TODO #23. GATT handles after 0x1403 shifted +1: if notifications don't
+  arrive, clear the phone's GATT cache (toggle Bluetooth / unpair).
+
+## 2026-09-03 — Write-path BUSY-drop fix (boiler temp + preset sync)
+
+`STATUS.md` TODO item 4 (assessment) / item 4.1 (fix). Confirmed the Write
+button wiring in `RemoteControlScreen.kt` / `ControllerParameterScreen.kt` was
+unaffected by the 2026-09-01 changes, but found the fix itself had introduced
+an unserialized double-write that could silently drop under contention.
+
+### Fixed
+- **`txNewBoilerTargetTemp()`'s two writes no longer race.** Since 2026-09-01
+  it dispatches both `0x1403` (active setpoint) and `0x1404` (brew preset) for
+  one call. Android's GATT stack allows only one outstanding operation at a
+  time; `writeCharacteristicsDevice()` discarded the boolean return of
+  `gatt.writeCharacteristic()`, so the second write could return `false`
+  (BUSY) and be silently dropped — no exception, no log, `onCharacteristicWrite`
+  for `0x1404` never fires — while the UI still reported success. The `0x1404`
+  write now only dispatches after the `0x1403` write has actually left the
+  stack (`app/src/main/java/com/example/blespresso/data/ble/RemoteControlBLEReceiveManager.kt`).
+- **`writeCharacteristicsDevice()` now returns a `WriteDispatchResult`**
+  (`DISPATCHED / NOT_CONNECTED / BUSY`) instead of discarding
+  `gatt.writeCharacteristic()`'s return value.
+- **A transient BUSY write dispatch is retried**, not dropped —
+  `writeWithRetry()` retries up to 5x with a 150 ms backoff (same pattern as
+  the read queue's BUSY retry from 2026-09-01), calling `onDone` once
+  dispatched or once retries are exhausted so callers can safely chain a
+  follow-up write.
+
+### Docs
+- `STATUS.md` TODO item 4 marked done (assessment); new item 4.1 added
+  documenting the risk and marked done (fix applied).
+
+---
+
 ## 2026-09-01 — Machine-config read UUID fix + read-queue/screen-reentry hardening
 
 `STATUS.md` TODO items 2 and 3. App's machine-config (`0x1400`) UUID map was off

@@ -32,7 +32,7 @@ import kotlin.math.sin
 fun BoilerTemperatureProgressIndicator(
     modifier: Modifier = Modifier,
     boilerWaterTemp:Float,
-    boilerTargetTemp:Float,
+    boilerTempSetpoint:Float,
     primaryColor: Color,
     secondaryColor:Color,
     primaryTextColor: Color,
@@ -127,11 +127,11 @@ fun BoilerTemperatureProgressIndicator(
             {
                 var linecolor = primaryColor.copy(alpha = 0.5f)
                 when{
-                    i > 105 && i<=boilerTargetTemp -> linecolor = Color.Red
-                    i < boilerTargetTemp-minValue -> linecolor = primaryColor
+                    i > 105 && i<=boilerTempSetpoint -> linecolor = Color.Red
+                    i < boilerTempSetpoint-minValue -> linecolor = primaryColor
                     else                          -> primaryColor.copy(alpha = 0.4f)
                 }
-                //val color = if(i < boilerTargetTemp-minValue) primaryColor else primaryColor.copy(alpha = 0.5f)
+                //val color = if(i < boilerTempSetpoint-minValue) primaryColor else primaryColor.copy(alpha = 0.5f)
                 val angleInDegrees = (45f+(i.toFloat()*270f/(maxValue-minValue)))
                 val angleInRad = angleInDegrees * PI / 180f + PI/2f
 
@@ -152,7 +152,7 @@ fun BoilerTemperatureProgressIndicator(
                 {
                     positionStartIndicatorTemp = end
                 }else{}
-                if( i == (boilerTargetTemp.toInt()))
+                if( i == (boilerTempSetpoint.toInt()))
                 {
                     val target = Offset(
                         x = ((outerRadius*1.25) * cos(angleInRad) + circleCenter.x + xGapAdjustment).toFloat(),
@@ -193,7 +193,7 @@ fun BoilerTemperatureProgressIndicator(
                         }
                     )
                     drawText(
-                        "Target: $boilerTargetTemp°C",
+                        "Target: $boilerTempSetpoint°C",
                         circleCenter.x,
                         circleCenter.y + 35.dp.toPx()/1f,
                         Paint().apply {
@@ -215,7 +215,7 @@ fun BoilerTemperatureProgressIndicator(
 
                     )
                     drawText(
-                        "$boilerTargetTemp°C",
+                        "$boilerTempSetpoint°C",
                         positionTargetTemp.x,
                         positionTargetTemp.y,
                         Paint().apply {
@@ -265,7 +265,7 @@ fun Preview() {
             .size(350.dp)
             .background(darkGray),
         boilerWaterTemp = 25f,
-        boilerTargetTemp = 100f,
+        boilerTempSetpoint = 100f,
         primaryColor = Cyan800,
         secondaryColor = gray,
         circleRadius = 330f,

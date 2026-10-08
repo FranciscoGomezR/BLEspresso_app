@@ -16,6 +16,7 @@ interface RemoteControlReceiveManager
     //Our ReceiveManager need to realize the concrete implementation of:
     val data:MutableSharedFlow<Resource<BoilerDataResult>>
     val dataToWrite:MutableSharedFlow<Resource<BoilerDataResult>>
+    // 0x1403 active boiler setpoint (READ at sync + NOTIFY on BREW/STEAM switch change)
     val dataToRead:MutableSharedFlow<Resource<BoilerSetpoint>>
     val dataBrewCfgPreInfusionPwr:MutableSharedFlow<Resource<CharDataClass>>
     val dataBrewCfgPreInfusionTmr:MutableSharedFlow<Resource<CharDataClass>>
@@ -24,8 +25,9 @@ interface RemoteControlReceiveManager
     val dataBrewCfgDeclining__Pwr:MutableSharedFlow<Resource<CharDataClass>>
     val dataBrewCfgDeclining__Tmr:MutableSharedFlow<Resource<CharDataClass>>
 
-    // new characteristic for steam temperature setpoint
-    val dataSteamSetpoint: MutableSharedFlow<Resource<BoilerSetpoint>>
+    // brew (0x1404) / steam (0x1405) temperature presets
+    val dataBrewTempPreset: MutableSharedFlow<Resource<BoilerSetpoint>>
+    val dataSteamTempPreset: MutableSharedFlow<Resource<BoilerSetpoint>>
 
     val dataPIDcfgPterm:MutableSharedFlow<Resource<CharDataClass>>
     val dataPIDcfgIterm:MutableSharedFlow<Resource<CharDataClass>>
@@ -40,13 +42,13 @@ interface RemoteControlReceiveManager
 
     fun startConnection()
 
-    fun rxReadBoilerTargetTemp()
-    // read steam temperature setpoint from BLE
-    fun rxReadSteamTempSetpoint()
+    fun rxReadBoilerTempSetpoint()
+    fun rxReadBrewTempPreset()
+    fun rxReadSteamTempPreset()
 
-    // Individual MAchine characteristic writes
-    fun txNewBoilerTargetTemp(newTarget: Float)
-    fun txNewSteamTempSetpoint(newTarget: Float)
+    // Individual MAchine characteristic writes (0x1403 setpoint is read-only)
+    fun txNewBrewTempPreset(newTarget: Float)
+    fun txNewSteamTempPreset(newTarget: Float)
     fun txWritePreInfusionPwr(value: Float)
     fun txWritePreInfusionTmr(value: Float)
     fun txWriteInfusionPwr(value: Float)
@@ -63,7 +65,7 @@ interface RemoteControlReceiveManager
     fun txWritePidIBoost(value: Float)
 
     suspend fun rxReadPIDConfiguration()
-    // Reads the machine config UUIDs (active setpoint 0x1403, steam preset 0x1405, 6 brew params
+    // Reads the machine config UUIDs (active setpoint 0x1403, brew/steam presets 0x1404/0x1405, 6 brew params
     // 0x1406-0x140B) in a single GATT-safe sequential queue. A failed/short char is skipped, not
     // fatal; machineConfigReadComplete fires once the queue drains.
     suspend fun rxReadMachineConfiguration()
