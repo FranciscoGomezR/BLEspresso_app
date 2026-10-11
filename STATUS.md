@@ -203,7 +203,7 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         Buttons: Controller in Read/Write row, left; Read + Write right; separate Controller row
         removed. Button row directly under brew table, ~14 dp vertical padding, not at screen bottom.
 
-- 9[]   Integrate 0x1401 machine status with UX on RemoteControlScreen.
+- 9[x]  Integrate 0x1401 machine status with UX on RemoteControlScreen.
         DEPENDS ON: #7 (MachineStatus contract). May start earlier with a fake MachineStatus
         (@Preview / hardcoded VM value); merge only after #7 works.
         INPUT: docs/UX/README.md §8 ONLY (palette, icons, slots, glow/pulse, layout, buttons,
@@ -211,12 +211,24 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         Consumes: viewModel.machineStatus (MachineStatus?) — no BLE code changes here.
         Integration seam: README §8.0 (stateless composables + one mapping function).
         Includes: switch active palette to #7 Gaggia light (README §8.1b).
+        Includes: new Color.kt val on_accent; button text = on_accent on RemoteControlScreen
+        and ControllerParameterScreen (contrast on Gaggia red, README §8.1b).
         Decisions fixed in README §8: state labels + contentDescription (§8.2), glow on glyph
         only for 0x04–0x06 lamp icons (§8.4), Gaggia hex approximations accepted.
         Confirmed as written: idle slot labels (§8.3), sizes 13 sp / 10 sp / 30 dp (§8.3, §8.5),
         glow 0.4 alpha / ~18 dp / 2 s pulse (§8.4), "—" + all slots idle when no status (§8).
         DONE WHEN: README §8.7 checklist passes.
         CHANGELOG: add entry only after code is implemented.
+        Code done (2026-10-11), build passes with palette #1/#3, #7 (active) and #8:
+        - Color.kt: #7 active; on_accent added to all 3 palettes.
+        - New presentation/MachineStatusUi.kt: state map (§8.2), StatusTopBar(status),
+          StatusSlotColumn(status), glow/pulse modifier, @Previews (all states + null).
+        - RemoteControlScreen.kt: top bar; dial + 16 dp + slot column centred; Controller moved
+          into Read/Write row (left), old Controller row deleted; row padding 14 dp; button
+          text on_accent.
+        - ControllerParameterScreen.kt: button text on_accent.
+        Verified 2026-10-11: Android Studio previews OK; changes confirmed on hardware.
+        See: docs/CHANGELOG.md -> "2026-10-11 — 0x1401 machine status on screen (STATUS TODO #9)"
 
 - 10[]  OUT OF SCOPE — do not work on it for now.
         Block WRITE buttons / tx* calls while machine brewing or steaming:
@@ -228,8 +240,11 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         block Controller (PID) screen writes? show "machine busy" message?
 
 - 11[]  FUTURE. Theme follows system dark mode: palette #7 (Gaggia light) when light,
-        #8 (Gaggia dark) when dark, instead of comment-swap in Color.kt. Needs Color.kt vals
-        -> theme-aware (e.g. CompositionLocal / MaterialTheme colors) + Theme.kt rework.
+        #8 (Gaggia dark) when dark.
+        Hook exists (2026-10-11): Color.kt `activePalette` is Compose state; all color getters
+        read it. Remaining: in BlespressoAppTheme set
+        `activePalette = if (isSystemInDarkTheme()) PALETTE_GAGGIA_DARK else PALETTE_GAGGIA_LIGHT`
+        (or a settings toggle). No call-site changes needed.
 
 - 12[x] Housekeeping: copy icon/preview/drawable generator scripts to docs/UX/tools/
         (gen_icons.py, gen_preview.py, gen_layout.py, svg2vd.py, svg2vd_b.py; currently only in

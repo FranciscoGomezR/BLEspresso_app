@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -68,6 +70,7 @@ import com.example.blespresso.ui.theme.textprimary
 import com.example.blespresso.ui.theme.textprimary_indic
 import com.example.blespresso.ui.theme.textsecondary
 import com.example.blespresso.ui.theme.textsecondary_indic
+import com.example.blespresso.ui.theme.on_accent
 import com.example.blespresso.ui.theme.textbox_background
 import com.example.blespresso.ui.theme.textbox_text
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -308,20 +311,23 @@ fun RemoteControlScreen(
                 modifier = Modifier
                     .fillMaxSize()
             ) {
+                //  TOP BAR: 0x1401 mode + state (TODO #9, docs/UX/README.md §8.5) ---------------------
+                StatusTopBar(status = viewModel.machineStatus)
                 //  FIRST THIRD OF SCREEN
-                //  BOILER TEMPERATURE INDICATOR     ---------------------------------------------------
+                //  BOILER TEMPERATURE INDICATOR + STATUS SLOTS -------------------------------------------
                 //  ------------------------------------------------------------------------------------
                 Row(
                     modifier = Modifier
                         .weight(0.7f)
                         .fillMaxWidth()
                 ) {
-                    // Content for the first row
-                    Box(
+                    // Content for the first row: dial + 16 dp + slot column, centred as one group
+                    Row(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(background_indic),
-                        contentAlignment = Alignment.Center
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         //Log.d("TemperatureScreen","Print Temp Value: ${viewModel.boilerWaterTemp}")
                         BoilerTemperatureProgressIndicator(
@@ -336,6 +342,8 @@ fun RemoteControlScreen(
                             secondaryTextColor = textsecondary_indic,
                             circleRadius = 280f,
                         )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        StatusSlotColumn(status = viewModel.machineStatus)
                     }
                 }
                 //  SECOND THIRD OF SCREEN
@@ -629,21 +637,41 @@ fun RemoteControlScreen(
                                     style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                             }
                         }
-                        //  ROW to allocate the following buttons:
-                        //  To READ and WRITE --------------------------------------------
+                        //  ROW to allocate the following buttons (TODO #9: one row, directly under
+                        //  the brew table): CONTROLLER (left), READ and WRITE (right) ----------------
                         Row(
                             modifier = Modifier
-                                .padding(start = 0.dp, top = 10.dp)
+                                .padding(start = 0.dp, top = 14.dp, bottom = 14.dp)
                                 .size(width = 380.dp, height = 50.dp),
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column( // 1 COLUMN allocates →  1/3 space of the column --------------------------
+                            Column( // 1 COLUMN → Button: CONTROLLER-PARAMETERS --------------------------
                                 modifier = Modifier
                                     .weight(0.4f)
                                     .padding(top = 0.dp, start = 5.dp, end = 5.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
-                            ) {}
+                            ) {
+                                Button(
+                                    onClick = {
+                                        MoveToOtherScreen = true
+                                        navController.navigate(Screen.BlespressoCtrlParamScreen.route) {
+                                            popUpTo(Screen.BlespressoMainScreen.route) {
+                                                inclusive = true
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(backgroundColor = accent),
+                                    modifier = Modifier
+                                        .fillMaxWidth(1f)
+                                        .height(40.dp)
+                                        .wrapContentHeight()
+                                ) {
+                                    Text(
+                                        text = "Controller", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = on_accent)
+                                    )
+                                }
+                            }
 
                             Column( // 1 COLUMN → Button To Read --------------------------
                                 modifier = Modifier
@@ -670,7 +698,7 @@ fun RemoteControlScreen(
                                         .wrapContentHeight()
                                 ) {
                                     Text(
-                                        text = "Read", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = textprimary)
+                                        text = "Read", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = on_accent)
                                     )
                                 }
                             }
@@ -692,7 +720,7 @@ fun RemoteControlScreen(
                                     Text(text = "Write",
                                         style = TextStyle(
                                             fontSize = tokens.ButtonType2_Font,
-                                            color = textprimary
+                                            color = on_accent
                                         ),
                                         modifier = Modifier.pointerInput(Unit) {
                                             detectTapGestures(
@@ -733,56 +761,6 @@ fun RemoteControlScreen(
                                     )
                                 }
                             }
-                        }
-                        //  ROW to allocate the following buttons:
-                        //  BUTTON: To go CONTROLLER  page --------------------------------------------
-                        Row(
-                            modifier = Modifier
-                                .padding(start = 0.dp, top = 0.dp)
-                                .size(width = 380.dp, height = 50.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column( // 1 COLUMN → empty 1/3 space --------------------------
-                                modifier = Modifier
-                                    .weight(0.4f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {}
-                            Column( // 2 COLUMN → Button: CONTROLLER-PARAMETERS --------------------------
-                                modifier = Modifier
-                                    .weight(0.3f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Button(
-                                    onClick = {
-                                        MoveToOtherScreen = true
-                                        navController.navigate(Screen.BlespressoCtrlParamScreen.route) {
-                                            popUpTo(Screen.BlespressoMainScreen.route) {
-                                                inclusive = true
-                                            }
-                                        }
-                                        //TODO("Enter Controller parameter window using navController")
-                                    },
-                                    colors = ButtonDefaults.buttonColors(backgroundColor = accent),
-                                    modifier = Modifier
-                                        .padding(start = 0.dp, top = 0.dp)
-                                        .fillMaxWidth(1f)
-                                        .height(40.dp)
-                                        .wrapContentHeight()
-                                ) {
-                                    Text(
-                                        text = "Controller", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = textprimary)
-                                    )
-                                }
-                            }
-                            Column( // 3 COLUMN → empty 1/3 space --------------------------
-                                modifier = Modifier
-                                    .weight(0.3f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {}
                         }
                     }
                 }

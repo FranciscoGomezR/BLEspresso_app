@@ -1,6 +1,124 @@
 package com.example.blespresso.ui.theme
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+
+// TLDR: Theme palettes (docs/UX/README.md §2). One AppPalette per theme; the active one is
+//       selected by `activePalette` below. All screens use the top-level getters, so
+//       switching palette needs no call-site change. activePalette is Compose state: assigning
+//       it at runtime recomposes every screen (hook for STATUS TODO #11, dark mode).
+data class AppPalette(
+    val background_indic: Color,
+    val surface_indic: Color,
+    val accent_indic: Color,
+    val textprimary_indic: Color,
+    val textsecondary_indic: Color,
+    val background: Color,
+    val surface: Color,
+    val accent: Color,
+    val textprimary: Color,
+    val textsecondary: Color,
+    val textbox_background: Color,
+    val textbox_text: Color,
+    val icon_off: Color,
+    val icon_heat: Color,
+    val icon_ready: Color,
+    val icon_glow: Color,
+    val on_accent: Color,
+    val statusbar: Color          // Android system status bar (top, clock/battery)
+)
+
+// former #1/#3
+val PALETTE_CLASSIC = AppPalette(
+    background_indic    = Color(0xFFEEEEEE),
+    surface_indic       = Color(0xFFC3C8D3),
+    accent_indic        = Color(0xFFEA9216),
+    textprimary_indic   = Color(0xFF313841),
+    textsecondary_indic = Color(0xFF3A4750),
+    background          = Color(0xFFEEEEEE),
+    surface             = Color(0xFFC3C8D3),
+    accent              = Color(0xFFFFBD76),
+    textprimary         = Color(0xFF313841),
+    textsecondary       = Color(0xFF3A4750),
+    textbox_background  = Color(0xFFC3C8D3),
+    textbox_text        = Color(0xFF313841),
+    icon_off            = Color(0x61313841),
+    icon_heat           = Color(0xFFE07A1F),
+    icon_ready          = Color(0xFF2E9E5B),
+    icon_glow           = Color(0xFFEA9216),
+    on_accent           = Color(0xFF313841),
+    statusbar           = Color(0xFFC3C8D3)
+)
+
+// former #7, TODO #6
+val PALETTE_GAGGIA_LIGHT = AppPalette(
+    background_indic    = Color(0xFFF4EFE6),
+    surface_indic       = Color(0xFFB8BCC2),
+    accent_indic        = Color(0xFFC8102E),
+    textprimary_indic   = Color(0xFF1A1A1A),
+    textsecondary_indic = Color(0xFF4A4D52),
+    background          = Color(0xFFF4EFE6),
+    surface             = Color(0xFFDDDFE2),
+    accent              = Color(0xFFC8102E),
+    textprimary         = Color(0xFF1A1A1A),
+    textsecondary       = Color(0xFF4A4D52),
+    textbox_background  = Color(0xFFFFFFFF),
+    textbox_text        = Color(0xFF1A1A1A),
+    icon_off            = Color(0x611A1A1A),
+    icon_heat           = Color(0xFFE07A1F),
+    icon_ready          = Color(0xFF2E9E5B),
+    icon_glow           = Color(0xFFC8102E),
+    on_accent           = Color(0xFFFFFFFF),
+    statusbar           = Color(0xFFDDDFE2)
+)
+
+// former #8, TODO #6
+val PALETTE_GAGGIA_DARK = AppPalette(
+    background_indic    = Color(0xFF121212),
+    surface_indic       = Color(0xFF3A3D42),
+    accent_indic        = Color(0xFFE53950),
+    textprimary_indic   = Color(0xFFF2F2F2),
+    textsecondary_indic = Color(0xFFB8BCC2),
+    background          = Color(0xFF1A1A1A),
+    surface             = Color(0xFF2A2C30),
+    accent              = Color(0xFFE53950),
+    textprimary         = Color(0xFFF2F2F2),
+    textsecondary       = Color(0xFFB8BCC2),
+    textbox_background  = Color(0xFF3A3D42),
+    textbox_text        = Color(0xFFF2F2F2),
+    icon_off            = Color(0x61F2F2F2),
+    icon_heat           = Color(0xFFFF9A3D),
+    icon_ready          = Color(0xFF4CC97E),
+    icon_glow           = Color(0xFFE53950),
+    on_accent           = Color(0xFFFFFFFF),
+    statusbar           = Color(0xFF2A2C30)
+)
+
+// >>> THEME SWITCH: change this one line (PALETTE_CLASSIC / _GAGGIA_LIGHT / _GAGGIA_DARK) <<<
+var activePalette by mutableStateOf(PALETTE_GAGGIA_DARK)
+
+val background_indic   : Color get() = activePalette.background_indic
+val surface_indic      : Color get() = activePalette.surface_indic
+val accent_indic       : Color get() = activePalette.accent_indic
+val textprimary_indic  : Color get() = activePalette.textprimary_indic
+val textsecondary_indic: Color get() = activePalette.textsecondary_indic
+val background         : Color get() = activePalette.background
+val surface            : Color get() = activePalette.surface
+val accent             : Color get() = activePalette.accent
+val textprimary        : Color get() = activePalette.textprimary
+val textsecondary      : Color get() = activePalette.textsecondary
+val textbox_background : Color get() = activePalette.textbox_background
+val textbox_text       : Color get() = activePalette.textbox_text
+val icon_off           : Color get() = activePalette.icon_off
+val icon_heat          : Color get() = activePalette.icon_heat
+val icon_ready         : Color get() = activePalette.icon_ready
+val icon_glow          : Color get() = activePalette.icon_glow
+val on_accent          : Color get() = activePalette.on_accent
+val statusbar          : Color get() = activePalette.statusbar
+
+// REFERENCE PALETTES (not used, future color ideas) --------------------------------------
 /*
 val Purple200 = Color(0xFFBB86FC)
 val Purple500 = Color(0xFF6200EE)
@@ -68,71 +186,6 @@ val white_textprimary= Color(0xFFF8FAFC)
 val blue_textsecondary= Color(0xFF94A3B8)
 
 
-*/
-
-//Color palette #1 and #3
-
-val background_indic= Color(0xFFEEEEEE)
-val surface_indic= Color(0xFFC3C8D3)
-val accent_indic= Color(0xFFEA9216)
-val textprimary_indic= Color(0xFF313841)
-val textsecondary_indic= Color(0xFF3A4750)
-
-val background= Color(0xFFEEEEEE)
-val surface= Color(0xFFC3C8D3)
-val accent= Color(0xFFFFBD76)
-val textprimary= Color(0xFF313841)
-val textsecondary= Color(0xFF3A4750)
-
-val textbox_background= surface
-val textbox_text= textprimary
-val icon_off= textprimary.copy(alpha = 0.38f)
-val icon_heat= Color(0xFFE07A1F)
-val icon_ready= Color(0xFF2E9E5B)
-val icon_glow= accent_indic
-
-//COLOR PALETTE #7 (Gaggia light) - TODO #6, see docs/UX/README.md
-/*
-val background_indic= Color(0xFFF4EFE6)
-val surface_indic= Color(0xFFB8BCC2)
-val accent_indic= Color(0xFFC8102E)
-val textprimary_indic= Color(0xFF1A1A1A)
-val textsecondary_indic= Color(0xFF4A4D52)
-
-val background= Color(0xFFF4EFE6)
-val surface= Color(0xFFDDDFE2)
-val accent= Color(0xFFC8102E)
-val textprimary= Color(0xFF1A1A1A)
-val textsecondary= Color(0xFF4A4D52)
-
-val textbox_background= Color(0xFFFFFFFF)
-val textbox_text= Color(0xFF1A1A1A)
-val icon_off= Color(0x611A1A1A)
-val icon_heat= Color(0xFFE07A1F)
-val icon_ready= Color(0xFF2E9E5B)
-val icon_glow= Color(0xFFC8102E)
-*/
-
-//COLOR PALETTE #8 (Gaggia dark) - TODO #6, see docs/UX/README.md
-/*
-val background_indic= Color(0xFF121212)
-val surface_indic= Color(0xFF3A3D42)
-val accent_indic= Color(0xFFE53950)
-val textprimary_indic= Color(0xFFF2F2F2)
-val textsecondary_indic= Color(0xFFB8BCC2)
-
-val background= Color(0xFF1A1A1A)
-val surface= Color(0xFF2A2C30)
-val accent= Color(0xFFE53950)
-val textprimary= Color(0xFFF2F2F2)
-val textsecondary= Color(0xFFB8BCC2)
-
-val textbox_background= Color(0xFF3A3D42)
-val textbox_text= Color(0xFFF2F2F2)
-val icon_off= Color(0x61F2F2F2)
-val icon_heat= Color(0xFFFF9A3D)
-val icon_ready= Color(0xFF4CC97E)
-val icon_glow= Color(0xFFE53950)
 */
 
 //Color palette #1

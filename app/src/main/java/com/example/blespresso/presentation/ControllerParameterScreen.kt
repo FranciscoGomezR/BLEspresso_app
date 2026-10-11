@@ -52,6 +52,7 @@ import com.example.blespresso.ui.theme.accent
 import com.example.blespresso.ui.theme.background
 import com.example.blespresso.ui.theme.textprimary
 import com.example.blespresso.ui.theme.textsecondary
+import com.example.blespresso.ui.theme.on_accent
 import com.example.blespresso.ui.theme.textbox_background
 import com.example.blespresso.ui.theme.textbox_text
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -671,7 +672,7 @@ fun BlespressoCtrlParamScreen(
                                     text = "Read",
                                     style = TextStyle(
                                         fontSize = ButtonType2_Font,
-                                        color = textprimary
+                                        color = on_accent
                                     )
                                 )
                             }
@@ -694,7 +695,7 @@ fun BlespressoCtrlParamScreen(
                                 Text(text = "Write",
                                     style = TextStyle(
                                         fontSize = ButtonType2_Font,
-                                        color = textprimary
+                                        color = on_accent
                                     ),
                                     modifier = Modifier.pointerInput(Unit) {
                                         detectTapGestures(
@@ -774,7 +775,7 @@ fun BlespressoCtrlParamScreen(
                                     text = "Main",
                                     style = TextStyle(
                                         fontSize = ButtonType1_Font,
-                                        color = textprimary
+                                        color = on_accent
                                     )
                                 )
                             }

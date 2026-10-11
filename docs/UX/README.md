@@ -15,13 +15,15 @@ accent, warm cream background. Flat, no gradients except the "lamp" glow.
 - **State** = icon + short text under it (e.g. "Pre-infusion").
 
 ## 2. Palette (`ui/theme/Color.kt`)
-Three palettes, same `val` names, switch by comment swap:
+Three palettes = `AppPalette` instances in `Color.kt`. Switch by editing ONE line:
+`var activePalette by mutableStateOf(PALETTE_GAGGIA_LIGHT)` (or `PALETTE_CLASSIC`,
+`PALETTE_GAGGIA_DARK`). Old palettes #0–#6 kept at file bottom as commented reference.
 
 | Palette | Use | background | surface | accent | textprimary |
 |---|---|---|---|---|---|
-| #1/#3 | current (active) | #EEEEEE | #C3C8D3 | #FFBD76 | #313841 |
-| #7 | Gaggia light — selected, activated in TODO #9 | #F4EFE6 | #DDDFE2 | #C8102E | #1A1A1A |
-| #8 | Gaggia dark | #1A1A1A | #2A2C30 | #E53950 | #F2F2F2 |
+| #1/#3 `PALETTE_CLASSIC` | previous default | #EEEEEE | #C3C8D3 | #FFBD76 | #313841 |
+| #7 `PALETTE_GAGGIA_LIGHT` | ACTIVE | #F4EFE6 | #DDDFE2 | #C8102E | #1A1A1A |
+| #8 `PALETTE_GAGGIA_DARK` | dark (not active) | #1A1A1A | #2A2C30 | #E53950 | #F2F2F2 |
 
 Gaggia hex values are approximations of the brand red / black / steel / cream, not
 official codes.
@@ -36,6 +38,8 @@ Roles covered by each palette:
 | `icon_off` | unlit icon (text color, 38 % alpha) |
 | `icon_heat` (orange) / `icon_ready` (green) | lit icon tint: green for 0x02 READY and 0x07 BREW_AUTOSTOP, orange for every other lit state |
 | `icon_glow` | lamp halo base (TODO #9) |
+| `on_accent` | text on `accent` backgrounds (buttons) |
+| `statusbar` | Android system status bar (applied in `Theme.kt`; icons auto dark/light) |
 
 Icons never hardcode color: SVG uses `currentColor`, app tints from palette.
 
@@ -146,12 +150,13 @@ mapping lives in the UI (8.2); do not add it to the VM or BLE layer.
   state without BLE. Do not add setters or test hooks to the ViewModel.
 
 ### 8.1 Already done (TODO #6) — do not redo
-- `java/.../ui/theme/Color.kt`: 3 palettes, same `val` names, switch by comment swap.
-  #1/#3 = current, active in code today. #7 = Gaggia light, #8 = Gaggia dark (both
-  commented out). Gaggia hex values are approximations (accepted).
+- `java/.../ui/theme/Color.kt`: `AppPalette` data class + `PALETTE_CLASSIC`,
+  `PALETTE_GAGGIA_LIGHT` (ACTIVE), `PALETTE_GAGGIA_DARK`; selected by `activePalette`.
+  Top-level getters (`background`, `accent_indic`, `icon_heat`, ...) read `activePalette`. Gaggia hex values are approximations (accepted).
   Every palette defines: `background*`, `surface*`, `accent*`, `textprimary*`,
   `textsecondary*` (each + `_indic` twin), `textbox_background`, `textbox_text`,
-  `icon_off`, `icon_heat`, `icon_ready`, `icon_glow`.
+  `icon_off`, `icon_heat`, `icon_ready`, `icon_glow` (unused by this spec; glow = tint).
+  `on_accent` (text on `accent`): added in TODO #9 (8.1b).
   Lit colors: only two. `icon_ready` (green) for 0x02 / 0x07; `icon_heat` (orange) for all
   other lit states. (`icon_brew` / `icon_steam` removed.)
 - All `BasicTextField`s in `RemoteControlScreen.kt` and `ControllerParameterScreen.kt`
@@ -163,9 +168,14 @@ mapping lives in the UI (8.2); do not add it to the VM or BLE layer.
 - Do not change palette values.
 
 ### 8.1b Palette switch (part of TODO #9)
-- Make **#7 (Gaggia light)** the active palette: comment out the `//Color palette #1 and #3`
-  block, uncomment the `//COLOR PALETTE #7` block. #8 stays commented out.
-- Keep the comment-swap mechanism. No system dark-mode handling (future STATUS TODO #11).
+- **#7 (Gaggia light)** is the active palette: `activePalette = PALETTE_GAGGIA_LIGHT`.
+- No system dark-mode handling yet (future STATUS TODO #11; runtime switch = assign
+  `activePalette`, screens recompose).
+- Add new val `on_accent` (text on `accent` backgrounds) to all 3 palettes:
+  CLASSIC `#313841`; GAGGIA_LIGHT `#FFFFFF`; GAGGIA_DARK `#FFFFFF`.
+- All `Button` text on `RemoteControlScreen` **and** `ControllerParameterScreen` uses
+  `on_accent` (was `textprimary`: near-black on Gaggia red = poor contrast). This is the only
+  allowed change to `ControllerParameterScreen`. Mode chip unaffected (red text on surface).
 
 ### 8.2 Status model
 Payload 0x1401 = `{mode: UByte, state: UByte}`.
@@ -242,6 +252,7 @@ Column(fillMaxSize)
     └─ Write (weight 0.3, unchanged)
     Padding: vertical 14.dp; placed directly under the brew table, NOT pinned to bottom.
     Delete the old separate Controller Row (same onClick / navigation moves with the button).
+    Button text color: on_accent (8.1b).
 ```
 Min width: 280 + 16 + 52 = 348 dp (fits 360 dp phones).
 
@@ -255,6 +266,7 @@ Min width: 280 + 16 + 52 = 348 dp (fits 360 dp phones).
 - Implement WRITE blocking while brewing/steaming (STATUS TODO #10, out of scope).
 
 ### 8.7 Done when
-- Palette #7 active; build passes with palette #1/#3, #7 and #8 active.
+- `PALETTE_GAGGIA_LIGHT` active; build passes with each of the 3 palettes active.
 - Each state 0x00–0x11 shows correct slot, drawable, tint, glow, pulse, labels.
 - Controller / Read / Write in one row under the brew table, working as before.
+- Button text readable on both screens (`on_accent`, white on red with #7).

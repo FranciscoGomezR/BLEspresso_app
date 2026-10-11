@@ -10,6 +10,47 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-10-11 — 0x1401 machine status on screen (STATUS TODO #9)
+
+Why: show machine mode + state (TODO #7 data) on RemoteControlScreen per docs/UX/README.md §8.
+
+### Added
+- `presentation/MachineStatusUi.kt`: code -> label / icon / tint map (§8.2), `StatusTopBar`
+  (mode chip + state label), `StatusSlotColumn` (boiler, brew, steam, step; idle slots unlit),
+  glow (Option B lamp icons: glyph only) + 2 s pulse, `@Preview`s for all states + null.
+
+### Changed
+- `RemoteControlScreen.kt`: top bar; dial + 16 dp + slot column centred as a group;
+  Controller button moved into the Read/Write row (left), old Controller row removed;
+  button row padding 14 dp under the brew table.
+- Button text uses new `on_accent` (white on Gaggia red) on RemoteControl and
+  ControllerParameter screens.
+- Active palette: Gaggia light.
+
+### Verified
+- Android Studio previews; hardware.
+
+## 2026-10-11 — One-line palette switch (Color.kt)
+
+Why: palettes were switched by moving `/* */` blocks that redeclared the same vals —
+error-prone and impossible at runtime.
+
+### Changed
+- `ui/theme/Color.kt`: `data class AppPalette` (18 color roles) + `PALETTE_CLASSIC` (former
+  #1/#3), `PALETTE_GAGGIA_LIGHT` (former #7), `PALETTE_GAGGIA_DARK` (former #8).
+  Switch = `var activePalette by mutableStateOf(PALETTE_GAGGIA_LIGHT)`. Existing names
+  (`background`, `accent_indic`, `icon_heat`, ...) are getters on `activePalette` -> no
+  call-site changes; assigning `activePalette` at runtime recomposes all screens.
+- Palettes #0–#6 kept at file bottom as commented reference.
+- New role `statusbar` (CLASSIC #C3C8D3, GAGGIA_LIGHT #DDDFE2, GAGGIA_DARK #2A2C30);
+  `ui/theme/Theme.kt` applies it to the Android status bar and picks dark/light status icons
+  by luminance. `themes.xml` color now only covers app launch.
+- `presentation/MachineStatusUi.kt`: state tint stored as `TintRole`, resolved at draw time
+  (follows a runtime palette switch).
+
+### Verified
+- Build passes with each of the 3 palettes active. Values unchanged (GAGGIA_LIGHT active).
+
 ## 2026-10-11 — 0x1401 machine status logic (STATUS TODO #7)
 
 Why: firmware TODO #25 made 0x1401 a 2 B `{mode, state}` READ + NOTIFY characteristic.
