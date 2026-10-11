@@ -10,6 +10,56 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-10-11 — 0x1401 machine status logic (STATUS TODO #7)
+
+Why: firmware TODO #25 made 0x1401 a 2 B `{mode, state}` READ + NOTIFY characteristic.
+App now receives it; UI rendering follows in TODO #9.
+
+### Added
+- `data/BoilerDataCharacteristics.kt`: `MachineStatus(mode, state)` (raw unsigned codes).
+- `data/RemoteControlReceiveManager.kt` + `data/ble/RemoteControlBLEReceiveManager.kt`:
+  `dataMachineStatus` flow; `emitMachineStatus()` decodes len == 2 (other lengths ignored +
+  logged, tag `BLE_MachineStatus`), used by `onCharacteristicRead` and
+  `onCharacteristicChanged`.
+- `presentation/RemoteControlViewModel.kt`: `machineStatus: MachineStatus?` (private set),
+  null until received and on data-flow Loading / Error (disconnect / reconnect).
+
+### Changed
+- `RemoteControlBLEReceiveManager.kt`: 0x1401 added to `CCCD_NOTIFY_UUIDS` (first) and to the
+  `rxReadMachineConfiguration()` read queue (last, 10 chars); comment firmware #24 -> #25.
+
+### Verified
+- Hardware: CCCD 0x1401 status=0; initial read `mode=1 state=0x00`; profile shot notifies
+  0x04 -> 0x05 -> 0x06 -> 0x07 -> 0x00, one per change. No UI change.
+
+### Migration
+- None. GATT handles unchanged; requires firmware with TODO #25.
+
+## 2026-10-09 — Status layout proposals (STATUS TODO #8)
+
+### Docs
+- `docs/UX/layout_preview.html`: 3 RemoteControlScreen layouts for mode text + 4 status
+  slots (boiler, brew, steam, step). `docs/UX/README.md` §7 pros/cons.
+
+## 2026-10-09 — UX proposal + Gaggia palettes (STATUS TODO #6)
+
+Why: 0x1401 machine status (TODO #7) needs icons, and the app needed Gaggia-styled palettes
+covering icons, background, text, textboxes and the boiler indicator.
+
+### Added
+- `docs/UX/`: `README.md` proposal, `option_a/` + `option_b/` (11 state SVGs each,
+  `currentColor`), `preview.html` (OFF/ON glow, light/dark), `icon_selection.md`.
+- `res/drawable/ic_state_*.xml`: 10 VectorDrawables from selected Option A (0x01 reuses
+  `ic_state_00_heating_on`). Tint at use site.
+- `ui/theme/Color.kt`: `//COLOR PALETTE #7 (Gaggia light)`, `#8 (Gaggia dark)` (commented);
+  new vals `textbox_background`, `textbox_text`, `icon_off/heat/ready/glow` (lit = 2 colors: ready green for 0x02/0x07, heat orange otherwise) in
+  active palette #1/#3 and in #7/#8.
+
+### Changed
+- `RemoteControlScreen.kt`, `ControllerParameterScreen.kt`: `BasicTextField` colors
+  `surface`/`textprimary` -> `textbox_background`/`textbox_text`. No visual change with
+  palette #1/#3 (same values).
+
 ## 2026-10-07 — Brew/steam preset limits = firmware limits, range label generated
 
 Why: app accepted brew 0–150 / steam 100–145 °C, label showed 0–100 / 100–140 °C, firmware

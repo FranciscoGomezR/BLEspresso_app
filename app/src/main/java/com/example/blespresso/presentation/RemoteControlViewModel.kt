@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.blespresso.data.ConnectionState
+import com.example.blespresso.data.MachineStatus
 import com.example.blespresso.data.RemoteControlReceiveManager
 import com.example.blespresso.utilities.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,6 +36,11 @@ class  RemoteControlViewModel @Inject constructor(
     // 0x1403 active boiler setpoint: display only (boilerTemperatureProgressIndicator).
     // Set by firmware from the presets on BREW/STEAM switch change (READ + NOTIFY).
     var boilerTempSetpoint by mutableStateOf(0f)
+        private set
+
+    // 0x1401 machine status, raw codes. null = not received yet / disconnected.
+    // UI (TODO #9) maps codes to text/icons per docs/UX/README.md §8.
+    var machineStatus by mutableStateOf<MachineStatus?>(null)
         private set
 
     // 0x1404 brew / 0x1405 steam temperature presets (editable)
@@ -79,11 +85,13 @@ class  RemoteControlViewModel @Inject constructor(
                     is Resource.Loading -> {
                         initialazingMessage = result.message
                         connectionState = ConnectionState.CurrentlyInitializing
+                        machineStatus = null
                     }
 
                     is Resource.Error -> {
                         errorMessage = result.errorMessage
                         connectionState = ConnectionState.Uninitialized
+                        machineStatus = null
                     }
                 }
             }
@@ -99,6 +107,14 @@ class  RemoteControlViewModel @Inject constructor(
                         connectionState = result.data.connectionState
                         boilerTempSetpoint = result.data.targetTemperature
                     }
+                }
+            }
+        }
+        // collect machine status (0x1401); does not touch connectionState
+        viewModelScope.launch {
+            remoteControlReceiveManager.dataMachineStatus.collectLatest { result ->
+                if (result is Resource.Success) {
+                    machineStatus = result.data
                 }
             }
         }

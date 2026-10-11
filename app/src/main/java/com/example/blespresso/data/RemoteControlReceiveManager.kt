@@ -18,6 +18,8 @@ interface RemoteControlReceiveManager
     val dataToWrite:MutableSharedFlow<Resource<BoilerDataResult>>
     // 0x1403 active boiler setpoint (READ at sync + NOTIFY on BREW/STEAM switch change)
     val dataToRead:MutableSharedFlow<Resource<BoilerSetpoint>>
+    // 0x1401 machine status {mode, state} (READ at sync + NOTIFY on change)
+    val dataMachineStatus:MutableSharedFlow<Resource<MachineStatus>>
     val dataBrewCfgPreInfusionPwr:MutableSharedFlow<Resource<CharDataClass>>
     val dataBrewCfgPreInfusionTmr:MutableSharedFlow<Resource<CharDataClass>>
     val dataBrewCfg___InfusionPwr:MutableSharedFlow<Resource<CharDataClass>>
@@ -66,7 +68,7 @@ interface RemoteControlReceiveManager
 
     suspend fun rxReadPIDConfiguration()
     // Reads the machine config UUIDs (active setpoint 0x1403, brew/steam presets 0x1404/0x1405, 6 brew params
-    // 0x1406-0x140B) in a single GATT-safe sequential queue. A failed/short char is skipped, not
+    // 0x1406-0x140B, machine status 0x1401) in a single GATT-safe sequential queue. A failed/short char is skipped, not
     // fatal; machineConfigReadComplete fires once the queue drains.
     suspend fun rxReadMachineConfiguration()
 

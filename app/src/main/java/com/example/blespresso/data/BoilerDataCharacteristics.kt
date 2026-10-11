@@ -13,6 +13,13 @@ data class BoilerSetpoint(
     val connectionState: ConnectionState
 )
 
+// 0x1401 machine status: raw unsigned codes (byte0 = mode, byte1 = state).
+// No label/icon/color mapping here; the UI owns it (docs/UX/README.md §8.2).
+data class MachineStatus(
+    val mode: Int,
+    val state: Int
+)
+
 data class CharDataClass(
     val charData : Float,
     val connectionState: ConnectionState

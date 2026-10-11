@@ -16,6 +16,7 @@ import com.example.blespresso.data.BoilerDataResult
 import com.example.blespresso.data.BoilerSetpoint
 import com.example.blespresso.data.CharDataClass
 import com.example.blespresso.data.ConnectionState
+import com.example.blespresso.data.MachineStatus
 import com.example.blespresso.data.RemoteControlReceiveManager
 import com.example.blespresso.utilities.Resource
 import kotlinx.coroutines.CoroutineScope
@@ -105,8 +106,8 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     // CCCD (0x2902) enable queue. Notifications must be re-enabled on every connection (firmware
     // has no bonding). Android allows one GATT op at a time, so CCCD writes are chained through
     // onDescriptorWrite instead of fired back-to-back (a second write would be silently dropped).
-    // Firmware TODO #24: add BLE_CHAR_BLESPRESSO_STATUS__UUID (0x1401) to this list.
     private val CCCD_NOTIFY_UUIDS = listOf(
+        BLE_CHAR_BLESPRESSO_STATUS__UUID,           // 0x1401 machine status (firmware TODO #25)
         BOILER_WATER_TEMP_CHARACTERISTICS_UUID,     // 0x1402 water temp
         BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID   // 0x1403 active setpoint
     )
@@ -136,6 +137,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     override val data: MutableSharedFlow<Resource<BoilerDataResult>> = MutableSharedFlow()
     override val dataToWrite: MutableSharedFlow<Resource<BoilerDataResult>> = MutableSharedFlow()
     override val dataToRead: MutableSharedFlow<Resource<BoilerSetpoint>> = MutableSharedFlow()
+    override val dataMachineStatus: MutableSharedFlow<Resource<MachineStatus>> = MutableSharedFlow()
     override val dataBrewCfgPreInfusionPwr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataBrewCfgPreInfusionTmr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
     override val dataBrewCfg___InfusionPwr: MutableSharedFlow<Resource<CharDataClass>> = MutableSharedFlow()
@@ -320,6 +322,10 @@ class RemoteControlBLEReceiveManager @Inject constructor(
             {
                 when(uuid)
                 {
+                    // 0x1401 machine status (initial READ in machine-config queue)
+                    UUID.fromString(BLE_CHAR_BLESPRESSO_STATUS__UUID)->{
+                        emitMachineStatus(value, "read")
+                    }
                     // 0x1403 active boiler setpoint -> boilerTemperatureProgressIndicator
                     UUID.fromString(BOILER_TEMP_SETPOINT_CHARACTERISTICS_UUID)->{
                         rxtemperature = parseTemp4(value)
@@ -588,13 +594,27 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                             dataToRead.emit(Resource.Success(data = BoilerSetpoint(setpoint, ConnectionState.Connected)))
                         }
                     }
+                    // 0x1401 machine status: firmware notifies on change only
                     UUID.fromString(BLE_CHAR_BLESPRESSO_STATUS__UUID)->{
-                        //Data format received from BLE device
-                        Log.d("BLEReceiverManager2", "$value")
+                        emitMachineStatus(value, "notify")
                     }
                     else -> Unit
                 }
             }
+        }
+    }
+
+    // TLDR: Decodes 0x1401 (2 B: byte0 = mode, byte1 = state, unsigned) and emits raw codes.
+    //       Any other length is ignored and logged. No label/icon mapping here (UI owns it).
+    private fun emitMachineStatus(value: ByteArray?, src: String) {
+        if (value == null || value.size != 2) {
+            Log.w("BLE_MachineStatus", "0x1401 $src ignored: len=${value?.size}")
+            return
+        }
+        val status = MachineStatus(value[0].toInt() and 0xFF, value[1].toInt() and 0xFF)
+        Log.d("BLE_MachineStatus", "0x1401 $src mode=${status.mode} state=0x%02X".format(status.state))
+        coroutineScope.launch {
+            dataMachineStatus.emit(Resource.Success(data = status))
         }
     }
 
@@ -893,8 +913,8 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     // TLDR: Writes PID phase-1 integral-gain boost multiplier to device (3-digit format, e.g. 6.5 → "065").
     override fun txWritePidIBoost(value: Float) = writeCharacteristic(CONTROL_PID_SERVICE_UUID, BLE_CHAR_PID_I_BOOST_UUID,       value, 3)
 
-    // TLDR: Reads all 9 machine-configuration UUIDs in a single GATT-safe sequential queue:
-    //       boiler temp setpoint → brew preset → steam preset → 6 brew params.
+    // TLDR: Reads all 10 machine-configuration UUIDs in a single GATT-safe sequential queue:
+    //       boiler temp setpoint → brew preset → steam preset → 6 brew params → machine status.
     //       Queue is processed tail-to-head via onCharacteristicRead callbacks.
     override suspend fun rxReadMachineConfiguration() {
         Log.d("BLE_rxMachineCfg", "About to READ machine configuration characteristics")
@@ -910,7 +930,8 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                 BLE_CHAR_BREW_INFUSION_POWER_UUID,        // 0x1408
                 BLE_CHAR_BREW_INFUSION_TIME__UUID,        // 0x1409
                 BLE_CHAR_BREW_DECLINING_PR_POWER_UUID,    // 0x140A
-                BLE_CHAR_BREW_DECLINING_PR_TIME__UUID     // 0x140B
+                BLE_CHAR_BREW_DECLINING_PR_TIME__UUID,    // 0x140B
+                BLE_CHAR_BLESPRESSO_STATUS__UUID          // 0x1401 machine status
             )
         )
     }

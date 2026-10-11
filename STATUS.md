@@ -138,9 +138,106 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         brew textbox now loaded from 0x1404.
         See: docs/CHANGELOG.md -> "2026-10-07 — Sync with firmware TODO #23: 0x1403 READ + NOTIFY (STATUS TODO #5)"
 
-- []    Block WRITE buttons / tx* calls while machine brewing or steaming. Steaming can be
-          inferred from 0x1403 notify (setpoint == steam preset); brewing needs firmware
-          TODO #24 status notify (0x1401).
+- 6[x]  based on item #7 propose, the Ui style of the app. and the gaggia's brand style.
+        propose the best suitable icon/image format to be display in the app.
+        comsidere the option of using the idea of "iluminiation" on an icon to show an element is ON or there is power apply to it.
+        For the colors, make the color code flexible/adjustable by the theme color. And try to match the color been used by gaggia brand.
+          also create "//COLOR PALETTE " where the proposed color can be set and shall be applicable to icons, backgorund, text, textboxes and boilerTemperatureProgressIndicator()
+          Goal: have three theme/palette colors 1st current one, 2nd light mode proposed by you, 3rd dark mode proposed by you.
+        to display the mode the machine is currenlt in, i think text is the best option:
+          mode : 0 CLASSIC, 1 PROFILE, 2 STEP FUNCTION
+        For the icons/images, propose two options:
+          state: 0x00 HEATING_ON, 0x01 HEATING_OFF, 0x02 READY, 0x03 BREWING (classic),
+                 0x04 BREW_PREINFUSE, 0x05 BREW_INFUSE, 0x06 BREW_TAPER,
+                 0x07 BREW_AUTOSTOP (profile), 0x08 STEAMING,
+                 0x10 STEP_OFF, 0x11 STEP_ON
+        Save icons/images inside docs/... and inside a new folder named: UX
+        Done: docs/UX/README.md (style, palette, SVG->VectorDrawable, illumination, state table),
+        option_a/ (line glyphs) + option_b/ (panel lamps), preview.html.
+        Selected: Option A, except 0x04/0x05/0x06 = Option B (see docs/UX/icon_selection.md).
+        Color.kt: palette #1/#3 (current, active), #7 Gaggia light, #8 Gaggia dark; new vals
+        textbox_*, icon_* in each; all BasicTextFields use textbox_*.
+        See: docs/CHANGELOG.md -> "2026-10-09 — UX proposal + Gaggia palettes (STATUS TODO #6)"
+
+- 7[x]  Sync with firmware TODO #25 (gaggia_controller_git): 0x1401 machine status
+        is READ + NOTIFY, 2 B binary (was 10 B unused).
+        SCOPE: BLE + ViewModel logic only. NO UI changes (UI = TODO #9).
+        Payload: byte0 = mode, byte1 = state (unsigned).
+          mode : 0 CLASSIC, 1 PROFILE, 2 STEP
+          state: 0x00 HEATING_ON, 0x01 HEATING_OFF, 0x02 READY, 0x03 BREWING (classic),
+                 0x04 BREW_PREINFUSE, 0x05 BREW_INFUSE, 0x06 BREW_TAPER,
+                 0x07 BREW_AUTOSTOP (profile), 0x08 STEAMING,
+                 0x10 STEP_OFF, 0x11 STEP_ON
+        Notify on change only (firmware hysteresis, no flicker). 0x1403 notify precedes
+        0x1401 on setpoint change.
+        CONTRACT (output consumed by TODO #9 / #10 — keep exactly):
+          data class MachineStatus(val mode: Int, val state: Int)   // raw unsigned codes
+          RemoteControlViewModel: var machineStatus by mutableStateOf<MachineStatus?>(null)
+          null = not received yet. Unknown codes passed through raw (UI decides).
+          No label / icon / color mapping in data or VM layer.
+        Changes needed:
+        - RemoteControlBLEReceiveManager.kt: add BLE_CHAR_BLESPRESSO_STATUS__UUID to
+          CCCD_NOTIFY_UUIDS (0x1401, 0x1402, 0x1403); fix comment "TODO #24" -> "#25".
+        - READ 0x1401 once in initial sync: appended to rxReadMachineConfiguration() queue.
+        - onCharacteristicChanged / onCharacteristicRead: len == 2 -> MachineStatus(mode, state)
+          (bytes as unsigned: toInt() and 0xFF); other len -> ignore + log.
+        - Emit via new flow dataMachineStatus (dataToRead is 0x1403-only); VM sets machineStatus.
+          Reset to null on data-flow Loading / Error (disconnect, reconnect).
+        - Log.d every update: "0x1401 mode=<m> state=0x<ss>".
+        - GATT handles unchanged (0x1401 CCCD existed); only value length changes.
+        DONE WHEN: build passes; Logcat shows mode/state on connect (initial READ) and on each
+        machine change; screen unchanged.
+        CHANGELOG: add entry only after code is implemented.
+        Code done (2026-10-11), build passes: MachineStatus (BoilerDataCharacteristics.kt),
+        dataMachineStatus flow (interface + BLE manager), emitMachineStatus() helper, 0x1401 in
+        CCCD list + machine-config read queue, VM machineStatus (private set).
+        Verified on hardware 2026-10-11: CCCD 0x1401 status=0; initial read mode=1 state=0x00;
+        profile shot notify 0x04 -> 0x05 -> 0x06 -> 0x07 -> 0x00, one notify per change.
+        See: docs/CHANGELOG.md -> "2026-10-11 — 0x1401 machine status logic (STATUS TODO #7)"
+
+- 8[x]  Read current UX layout for RemoteControlScreen and propose three different layouta on 
+        where to add the slots and text display to display icons and machine state. Use and .html to show a preview.
+        Done: docs/UX/layout_preview.html (L1 strip, L2 dial corners, L3 header + side column),
+        STEAMING own slot; summary in docs/UX/README.md §7. Selected: L3, side-by-side variant
+        (dial + 16 dp + slot column centred as group; min width 348 dp; pinned-right rejected).
+        Buttons: Controller in Read/Write row, left; Read + Write right; separate Controller row
+        removed. Button row directly under brew table, ~14 dp vertical padding, not at screen bottom.
+
+- 9[]   Integrate 0x1401 machine status with UX on RemoteControlScreen.
+        DEPENDS ON: #7 (MachineStatus contract). May start earlier with a fake MachineStatus
+        (@Preview / hardcoded VM value); merge only after #7 works.
+        INPUT: docs/UX/README.md §8 ONLY (palette, icons, slots, glow/pulse, layout, buttons,
+        do-nots). Other docs/UX files = visual reference only.
+        Consumes: viewModel.machineStatus (MachineStatus?) — no BLE code changes here.
+        Integration seam: README §8.0 (stateless composables + one mapping function).
+        Includes: switch active palette to #7 Gaggia light (README §8.1b).
+        Decisions fixed in README §8: state labels + contentDescription (§8.2), glow on glyph
+        only for 0x04–0x06 lamp icons (§8.4), Gaggia hex approximations accepted.
+        Confirmed as written: idle slot labels (§8.3), sizes 13 sp / 10 sp / 30 dp (§8.3, §8.5),
+        glow 0.4 alpha / ~18 dp / 2 s pulse (§8.4), "—" + all slots idle when no status (§8).
+        DONE WHEN: README §8.7 checklist passes.
+        CHANGELOG: add entry only after code is implemented.
+
+- 10[]  OUT OF SCOPE — do not work on it for now.
+        Block WRITE buttons / tx* calls while machine brewing or steaming:
+        disable Write when machineStatus?.state in 0x03..0x08.
+        DEPENDS ON: #9 (status visible on screen). Uses machineStatus from #7.
+        DONE WHEN: Write greyed out + tx* not sent while brewing/steaming; enabled otherwise
+        (incl. machineStatus == null).
+        Open (decide when in scope): block Read too? lock preset / brew-table textboxes?
+        block Controller (PID) screen writes? show "machine busy" message?
+
+- 11[]  FUTURE. Theme follows system dark mode: palette #7 (Gaggia light) when light,
+        #8 (Gaggia dark) when dark, instead of comment-swap in Color.kt. Needs Color.kt vals
+        -> theme-aware (e.g. CompositionLocal / MaterialTheme colors) + Theme.kt rework.
+
+- 12[x] Housekeeping: copy icon/preview/drawable generator scripts to docs/UX/tools/
+        (gen_icons.py, gen_preview.py, gen_layout.py, svg2vd.py, svg2vd_b.py; currently only in
+        the Claude session scratchpad). Make paths relative to the script folder.
+        Done: scripts in docs/UX/tools/ + tools/README.md (run order). Paths relative;
+        svg2vd.py skips 0x04–0x06 (Option B, handled by svg2vd_b.py). Re-run reproduces all
+        current SVGs, previews and drawables byte-identical.
+
 - []    what onMtuChanged does? explain
 - []
 
