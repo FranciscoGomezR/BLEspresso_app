@@ -63,12 +63,13 @@ import com.example.blespresso.ui.theme.accent
 import com.example.blespresso.ui.theme.accent_indic
 import com.example.blespresso.ui.theme.background
 import com.example.blespresso.ui.theme.background_indic
-import com.example.blespresso.ui.theme.surface
 import com.example.blespresso.ui.theme.surface_indic
 import com.example.blespresso.ui.theme.textprimary
 import com.example.blespresso.ui.theme.textprimary_indic
 import com.example.blespresso.ui.theme.textsecondary
 import com.example.blespresso.ui.theme.textsecondary_indic
+import com.example.blespresso.ui.theme.textbox_background
+import com.example.blespresso.ui.theme.textbox_text
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import kotlinx.coroutines.delay
@@ -415,8 +416,8 @@ fun RemoteControlScreen(
                                     onValueChange = { newText ->
                                         cBrewTempPresetTB.onValueChange(newText) },
                                     cursorBrush = SolidColor(Unspecified),
-                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically)
+                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically)
                                                         .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
@@ -428,8 +429,8 @@ fun RemoteControlScreen(
                                     onValueChange = { newText ->
                                         cSteamTempPresetTB.onValueChange(newText) },
                                     cursorBrush = SolidColor(Unspecified),
-                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically)
+                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically)
                                         .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
@@ -527,8 +528,8 @@ fun RemoteControlScreen(
                                     onValueChange = { newText ->
                                         cPreinfusionPWR_TB.onValueChange(newText) },
                                     cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
+                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
                                         cPreinfusionPWR_TB.onDone()
@@ -540,8 +541,8 @@ fun RemoteControlScreen(
                                         cPreinfusionTMR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
+                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
                                         cPreinfusionTMR_TB.onDone()
@@ -554,8 +555,8 @@ fun RemoteControlScreen(
                                         cInfusionPWR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
+                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
                                         cInfusionPWR_TB.onDone()
@@ -568,8 +569,8 @@ fun RemoteControlScreen(
                                         cInfusionTMR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
+                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
                                         cInfusionTMR_TB.onDone()
@@ -582,8 +583,8 @@ fun RemoteControlScreen(
                                         cDeclinPrPWR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
+                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
                                         cDeclinPrPWR_TB.onDone()
@@ -596,8 +597,8 @@ fun RemoteControlScreen(
                                         cDeclinPrTMR_TB.onValueChange(newText)
                                     },
                                     cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textprimary, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(surface).wrapContentHeight(align = Alignment.CenterVertically),
+                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = {
                                         cDeclinPrTMR_TB.onDone()

@@ -50,9 +50,10 @@ import com.example.blespresso.ui.theme.TableParam_fontsize
 import com.example.blespresso.ui.theme.TableTitle_fontsize
 import com.example.blespresso.ui.theme.accent
 import com.example.blespresso.ui.theme.background
-import com.example.blespresso.ui.theme.surface
 import com.example.blespresso.ui.theme.textprimary
 import com.example.blespresso.ui.theme.textsecondary
+import com.example.blespresso.ui.theme.textbox_background
+import com.example.blespresso.ui.theme.textbox_text
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalPermissionsApi::class)
@@ -374,12 +375,12 @@ fun BlespressoCtrlParamScreen(
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = textprimary,
+                                    color = textbox_text,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(surface)
+                                    .background(textbox_background)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -397,12 +398,12 @@ fun BlespressoCtrlParamScreen(
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = textprimary,
+                                    color = textbox_text,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(surface)
+                                    .background(textbox_background)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -420,12 +421,12 @@ fun BlespressoCtrlParamScreen(
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = textprimary,
+                                    color = textbox_text,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(surface)
+                                    .background(textbox_background)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -443,12 +444,12 @@ fun BlespressoCtrlParamScreen(
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = textprimary,
+                                    color = textbox_text,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(surface)
+                                    .background(textbox_background)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -466,12 +467,12 @@ fun BlespressoCtrlParamScreen(
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = textprimary,
+                                    color = textbox_text,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(surface)
+                                    .background(textbox_background)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,
@@ -489,12 +490,12 @@ fun BlespressoCtrlParamScreen(
                                 },
                                 cursorBrush = SolidColor(textprimary),
                                 textStyle = TextStyle(
-                                    color = textprimary,
+                                    color = textbox_text,
                                     fontSize = ParamValue_fontsize,
                                     textAlign = TextAlign.Center
                                 ),
                                 modifier = Modifier.height(30.dp)
-                                    .background(surface)
+                                    .background(textbox_background)
                                     .wrapContentHeight(align = Alignment.CenterVertically),
                                 keyboardOptions = KeyboardOptions(
                                     keyboardType = KeyboardType.Number,

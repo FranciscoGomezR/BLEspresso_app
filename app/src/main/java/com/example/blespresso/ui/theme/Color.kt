@@ -84,6 +84,57 @@ val accent= Color(0xFFFFBD76)
 val textprimary= Color(0xFF313841)
 val textsecondary= Color(0xFF3A4750)
 
+val textbox_background= surface
+val textbox_text= textprimary
+val icon_off= textprimary.copy(alpha = 0.38f)
+val icon_heat= Color(0xFFE07A1F)
+val icon_ready= Color(0xFF2E9E5B)
+val icon_glow= accent_indic
+
+//COLOR PALETTE #7 (Gaggia light) - TODO #6, see docs/UX/README.md
+/*
+val background_indic= Color(0xFFF4EFE6)
+val surface_indic= Color(0xFFB8BCC2)
+val accent_indic= Color(0xFFC8102E)
+val textprimary_indic= Color(0xFF1A1A1A)
+val textsecondary_indic= Color(0xFF4A4D52)
+
+val background= Color(0xFFF4EFE6)
+val surface= Color(0xFFDDDFE2)
+val accent= Color(0xFFC8102E)
+val textprimary= Color(0xFF1A1A1A)
+val textsecondary= Color(0xFF4A4D52)
+
+val textbox_background= Color(0xFFFFFFFF)
+val textbox_text= Color(0xFF1A1A1A)
+val icon_off= Color(0x611A1A1A)
+val icon_heat= Color(0xFFE07A1F)
+val icon_ready= Color(0xFF2E9E5B)
+val icon_glow= Color(0xFFC8102E)
+*/
+
+//COLOR PALETTE #8 (Gaggia dark) - TODO #6, see docs/UX/README.md
+/*
+val background_indic= Color(0xFF121212)
+val surface_indic= Color(0xFF3A3D42)
+val accent_indic= Color(0xFFE53950)
+val textprimary_indic= Color(0xFFF2F2F2)
+val textsecondary_indic= Color(0xFFB8BCC2)
+
+val background= Color(0xFF1A1A1A)
+val surface= Color(0xFF2A2C30)
+val accent= Color(0xFFE53950)
+val textprimary= Color(0xFFF2F2F2)
+val textsecondary= Color(0xFFB8BCC2)
+
+val textbox_background= Color(0xFF3A3D42)
+val textbox_text= Color(0xFFF2F2F2)
+val icon_off= Color(0x61F2F2F2)
+val icon_heat= Color(0xFFFF9A3D)
+val icon_ready= Color(0xFF4CC97E)
+val icon_glow= Color(0xFFE53950)
+*/
+
 //Color palette #1
 /*
 val background_indic= Color(0xFFEEEEEE)
