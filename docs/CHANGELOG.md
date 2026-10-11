@@ -18,6 +18,9 @@ Why: show machine mode + state (TODO #7 data) on RemoteControlScreen per docs/UX
 - `presentation/MachineStatusUi.kt`: code -> label / icon / tint map (§8.2), `StatusTopBar`
   (mode chip + state label), `StatusSlotColumn` (boiler, brew, steam, step; idle slots unlit),
   glow (Option B lamp icons: glyph only) + 2 s pulse, `@Preview`s for all states + null.
+  Slot text under the icon is the short label in sentence case (`Pre-infusion`,
+  `Infusion`, `Tapering`, `Heater off`, ...), matching idle labels; top bar keeps
+  upper case `... [BREWING]`.
 
 ### Changed
 - `RemoteControlScreen.kt`: top bar; dial + 16 dp + slot column centred as a group;

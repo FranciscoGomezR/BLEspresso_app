@@ -187,7 +187,7 @@ Payload 0x1401 = `{mode: UByte, state: UByte}`.
 | 2 | `STEP FUNCTION` |
 | other / not yet received | `—` |
 
-| state | Name | Slot | Drawable | Tint | Lit | Pulse | Label (text shown) | contentDescription |
+| state | Name | Slot | Drawable | Tint | Lit | Pulse | Label (top bar) | Slot text + contentDescription |
 |---|---|---|---|---|---|---|---|---|
 | 0x00 | HEATING_ON | boiler | `ic_state_00_heating_on` | `icon_heat` | yes | yes | `HEATING` | `HEATING` |
 | 0x01 | HEATING_OFF | boiler | `ic_state_00_heating_on` | `icon_off` | no | no | `HEATER OFF` | `HEATER OFF` |
@@ -202,8 +202,10 @@ Payload 0x1401 = `{mode: UByte, state: UByte}`.
 | 0x11 | STEP_ON | step | `ic_state_11_step_on` | `icon_heat` | yes | yes | `STEP ON` | `STEP ON` |
 | other | — | none | — | — | — | — | `—` | — |
 
-Label is used verbatim (upper case, incl. `[BREWING]`) in the top bar state text and under
-the active slot. Idle slots: contentDescription = idle label (8.3).
+Label (incl. `[BREWING]`) = top bar state text only. Text under the active slot icon =
+contentDescription column (no `[BREWING]`), shown in sentence case: first letter capital,
+rest lowercase (`Pre-infusion`, `Heater off`, `Shot done`). Idle slots: both = idle label
+(8.3), already sentence case.
 
 ### 8.3 Slots
 Four fixed slots, always visible, order top to bottom: boiler, brew, steam, step.

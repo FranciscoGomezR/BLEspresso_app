@@ -70,8 +70,8 @@ private data class StateSpec(
     val tint: TintRole,
     val isLit: Boolean,
     val isPulse: Boolean,
-    val label: String,
-    val contentDescription: String,
+    val label: String,                  // top bar text (e.g. "PRE-INFUSION [BREWING]")
+    val contentDescription: String,     // slot label under the icon + accessibility text
     val isLampIcon: Boolean = false     // Option B drawables: glow on glyph only (§8.4)
 )
 
@@ -103,6 +103,9 @@ private fun modeText(mode: Int?): String = when (mode) {
     2 -> "STEP FUNCTION"
     else -> NO_STATUS_TEXT
 }
+
+// Slot text style: first letter capital, rest lowercase ("PRE-INFUSION" -> "Pre-infusion").
+private fun String.toSlotText(): String = lowercase().replaceFirstChar { it.uppercase() }
 
 private fun MachineStatus?.stateSpec(): StateSpec? = this?.let { STATE_SPECS[it.state] }
 
@@ -143,7 +146,7 @@ fun StatusSlotColumn(status: MachineStatus?, modifier: Modifier = Modifier) {
         SLOT_IDLE.forEach { (slot, idleIcon, idleLabel) ->
             if (active != null && active.slot == slot) {
                 StatusSlotCell(
-                    iconRes = active.iconRes, tint = active.tint.color(), label = active.label,
+                    iconRes = active.iconRes, tint = active.tint.color(), label = active.contentDescription.toSlotText(),
                     contentDescription = active.contentDescription, isActive = true,
                     isLit = active.isLit, isPulse = active.isPulse, isLampIcon = active.isLampIcon
                 )
