@@ -10,6 +10,23 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-10-12 — Whole app follows activePalette (STATUS TODO #11)
+
+Why: preparation for the light/dark switch (TODO #13); unstyled UI used Material defaults.
+
+### Changed
+- `ui/theme/Theme.kt`: `MaterialTheme.colors` built from `activePalette` (primary = accent,
+  background, surface, on* = textprimary / on_accent); root `Surface(background)` +
+  `LocalContentColor = textprimary`. Removed empty `darkColors` / `lightColors` and the unused
+  `isSystemInDarkTheme` parameter (system dark mode ignored by design).
+- Fixes permission / error text and "Try again" button (were Material black / purple).
+
+### Docs
+- README §2: rule "every UI color comes from activePalette"; exception: dial >105 °C red band.
+
+### Verified
+- Device with PALETTE_GAGGIA_DARK: all screens, permission / error states, navigation.
+
 ## 2026-10-12 — Busy lock while brewing / steaming (STATUS TODO #10)
 
 Why: changing brew / PID parameters during a shot or steam is unsafe and confusing.

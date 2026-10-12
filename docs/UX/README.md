@@ -43,6 +43,13 @@ Roles covered by each palette:
 
 Icons never hardcode color: SVG uses `currentColor`, app tints from palette.
 
+**Rule (STATUS TODO #11):** every UI color comes from `activePalette` — via the Color.kt
+getters, or via `MaterialTheme.colors`, which `Theme.kt` builds from the active palette
+(primary = `accent`, background, surface, on* = `textprimary` / `on_accent`). `Theme.kt` also
+wraps all screens in a `Surface(background)` with default text color `textprimary`, and sets the
+Android status bar from `statusbar`. Fixed exceptions: dial >105 °C red band
+(`BoilerTemperatureProgressIndicator.kt`), transparent edge of the status glow.
+
 ## 3. Icon format
 Single-color **SVG** source -> Android **VectorDrawable** (Android Studio > New > Vector
 Asset > Local file). Why: resolution independent, tiny APK cost, tint per theme,

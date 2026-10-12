@@ -97,7 +97,7 @@ val PALETTE_GAGGIA_DARK = AppPalette(
 )
 
 // >>> THEME SWITCH: change this one line (PALETTE_CLASSIC / _GAGGIA_LIGHT / _GAGGIA_DARK) <<<
-var activePalette by mutableStateOf(PALETTE_GAGGIA_DARK)
+var activePalette by mutableStateOf(PALETTE_CLASSIC)
 
 val background_indic   : Color get() = activePalette.background_indic
 val surface_indic      : Color get() = activePalette.surface_indic

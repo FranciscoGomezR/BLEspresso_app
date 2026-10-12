@@ -247,12 +247,16 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         Verified on hardware 2026-10-12.
         See: docs/CHANGELOG.md -> "2026-10-12 — Busy lock while brewing / steaming (STATUS TODO #10)"
 
-- 11[]  FUTURE. Theme follows system dark mode: palette #7 (Gaggia light) when light,
-        #8 (Gaggia dark) when dark.
-        Hook exists (2026-10-11): Color.kt `activePalette` is Compose state; all color getters
-        read it. Remaining: in BlespressoAppTheme set
-        `activePalette = if (isSystemInDarkTheme()) PALETTE_GAGGIA_DARK else PALETTE_GAGGIA_LIGHT`
-        (or a settings toggle). No call-site changes needed.
+- 11[x] Color.kt `activePalette` is Compose state; all color getters
+        make sure the whole app follows `activePalette`. In preparation for Item #13
+        Audit 2026-10-12: leaks = empty Material colors in Theme.kt (unstyled permission / error
+        text + "Try again" button used Material defaults) and no root background.
+        Code done, build passes: Theme.kt builds MaterialTheme.colors from activePalette, root
+        Surface(background) + LocalContentColor = textprimary; unused darkColors/lightColors and
+        isSystemInDarkTheme param removed. Exception kept: dial >105 °C red band.
+        Rule in docs/UX/README.md §2.
+        Verified on device 2026-10-12 with PALETTE_GAGGIA_DARK: no leftover colors.
+        See: docs/CHANGELOG.md -> "2026-10-12 — Whole app follows activePalette (STATUS TODO #11)"
 
 - 12[x] Housekeeping: copy icon/preview/drawable generator scripts to docs/UX/tools/
         (gen_icons.py, gen_preview.py, gen_layout.py, svg2vd.py, svg2vd_b.py; currently only in
@@ -260,14 +264,17 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         Done: scripts in docs/UX/tools/ + tools/README.md (run order). Paths relative;
         svg2vd.py skips 0x04–0x06 (Option B, handled by svg2vd_b.py). Re-run reproduces all
         current SVGs, previews and drawables byte-identical.
+      
+- 13[]  add a swtich at the top right corner to switch theme colors (light <-> dark).
+        code in app only, ignore system.
 
-- 13[]  Propose a plan to decouple: Permissions (permissionState.allPermissionsGranted) and BLE connection status (bleConnectionState == ConnectionState.CurrentlyInitializing); from RemoteControlScreen.kt
+- 14[]  Propose a plan to decouple: Permissions (permissionState.allPermissionsGranted) and BLE connection status (bleConnectionState == ConnectionState.CurrentlyInitializing); from RemoteControlScreen.kt
         assess if creating a new screen is an elegant/easy implementation. Also, when user pressed "CONNECT TO ESPRESSO MACHINE" and there is no BLE devices found after 10seconds, it shall prompt a message, asking for permision to pass BLe connection, so user can experience the app without interaction; for this particular case; app shall inserts "0" in all paramater from the app and BLE CHAR. 
         Block WRITE, READ in RemoteControlScreen.kt and ControllerParameterScreen.kt
 
-- 14[]  App shall show at the bottom and at all screens: [App_version] and [Company_Name]
+- 15[]  App shall show at the bottom and at all screens: [App_version] and [Company_Name]
 
-- 15[]  Assess current application's code structure for: BLE functions, Kotlin and android. propose a plan to re-arrange the code to aligned it against good practices and to make it more efficient.
+- 16[]  Assess current application's code structure for: BLE functions, Kotlin and android. propose a plan to re-arrange the code to aligned it against good practices and to make it more efficient.
 
 
 - []
