@@ -18,6 +18,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.foundation.layout.Spacer
+import com.example.blespresso.ui.theme.ThemePrefs
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -111,7 +114,11 @@ private fun MachineStatus?.stateSpec(): StateSpec? = this?.let { STATE_SPECS[it.
 
 // TLDR: Top bar (§8.5): mode chip + active state label. null / unknown -> "—".
 @Composable
-fun StatusTopBar(status: MachineStatus?, modifier: Modifier = Modifier) {
+fun StatusTopBar(
+    status: MachineStatus?,
+    modifier: Modifier = Modifier,
+    onToggleTheme: (() -> Unit)? = null     // TODO #13: light/dark switch at the right end
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -134,6 +141,21 @@ fun StatusTopBar(status: MachineStatus?, modifier: Modifier = Modifier) {
             text = status.stateSpec()?.label ?: NO_STATUS_TEXT,
             style = TextStyle(color = textprimary, fontSize = 13.sp)
         )
+        if (onToggleTheme != null) {
+            // Icon shows the theme you switch TO: moon while light, sun while dark.
+            val isDark = ThemePrefs.isDark
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = onToggleTheme, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    painter = painterResource(
+                        id = if (isDark) R.drawable.ic_theme_light else R.drawable.ic_theme_dark
+                    ),
+                    contentDescription = if (isDark) "Switch to light theme" else "Switch to dark theme",
+                    tint = textprimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 }
 

@@ -43,6 +43,12 @@ Roles covered by each palette:
 
 Icons never hardcode color: SVG uses `currentColor`, app tints from palette.
 
+**Theme switch (STATUS TODO #13):** user toggles Gaggia light ↔ dark with the sun/moon icon at
+the right end of the main-screen top bar (`layout_DarkLightMode_preview.html`). Choice saved by
+`ui/theme/ThemePrefs.kt` (SharedPreferences `ui_prefs` / `palette`), loaded in
+`MainActivity.onCreate`. System dark mode is ignored. `activePalette` default in Color.kt =
+first-launch theme.
+
 **Rule (STATUS TODO #11):** every UI color comes from `activePalette` — via the Color.kt
 getters, or via `MaterialTheme.colors`, which `Theme.kt` builds from the active palette
 (primary = `accent`, background, surface, on* = `textprimary` / `on_accent`). `Theme.kt` also
@@ -248,7 +254,9 @@ Column(fillMaxSize)
 │   ├─ Mode chip: Text(mode text), color accent_indic, Bold, 13 sp,
 │   │   letterSpacing 0.1 em, border 1.5.dp accent_indic, RoundedCornerShape(12.dp),
 │   │   padding h 10.dp / v 1.dp
-│   └─ Text(active state Label or "—"), textprimary, 13 sp
+│   ├─ Text(active state Label or "—"), textprimary, 13 sp
+│   └─ (main screen only, TODO #13) Spacer(weight 1f) + IconButton 32.dp: theme switch,
+│       moon (ic_theme_dark) while light / sun (ic_theme_light) while dark, tint textprimary
 ├─ DialRow  Row(weight 0.7f, fillMaxWidth, bg = background_indic,
 │          horizontalArrangement = Center, verticalAlignment = CenterVertically) CHANGED
 │   ├─ BoilerTemperatureProgressIndicator(...)    UNCHANGED (same 280.dp, same params)

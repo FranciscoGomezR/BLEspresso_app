@@ -265,8 +265,13 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         svg2vd.py skips 0x04–0x06 (Option B, handled by svg2vd_b.py). Re-run reproduces all
         current SVGs, previews and drawables byte-identical.
       
-- 13[]  add a swtich at the top right corner to switch theme colors (light <-> dark).
+- 13[x] add a swtich at the top right corner to switch theme colors (light <-> dark).
         code in app only, ignore system.
+        Done 2026-10-12: sun/moon icon at right end of status top bar (main screen only),
+        approved via docs/UX/layout_DarkLightMode_preview.html. ThemePrefs.kt persists palette
+        key (SharedPreferences ui_prefs/palette), loaded in MainActivity.onCreate. Verified on
+        device: instant switch, kept across sessions, system dark mode ignored.
+        See: docs/CHANGELOG.md -> "2026-10-12 — Light/dark theme switch (STATUS TODO #13)"
 
 - 14[]  Propose a plan to decouple: Permissions (permissionState.allPermissionsGranted) and BLE connection status (bleConnectionState == ConnectionState.CurrentlyInitializing); from RemoteControlScreen.kt
         assess if creating a new screen is an elegant/easy implementation. Also, when user pressed "CONNECT TO ESPRESSO MACHINE" and there is no BLE devices found after 10seconds, it shall prompt a message, asking for permision to pass BLe connection, so user can experience the app without interaction; for this particular case; app shall inserts "0" in all paramater from the app and BLE CHAR. 

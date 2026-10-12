@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.blespresso.presentation.Navigation
 import com.example.blespresso.ui.theme.BlespressoAppTheme
+import com.example.blespresso.ui.theme.ThemePrefs
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -25,6 +26,8 @@ class MainActivity : ComponentActivity() {
     //life cycle of this function is -> invoke when App starts
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Saved light/dark choice (TODO #13), applied before the first frame
+        ThemePrefs.load(this)
 
         setContent {
             BlespressoAppTheme{

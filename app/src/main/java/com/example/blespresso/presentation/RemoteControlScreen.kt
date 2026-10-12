@@ -71,6 +71,7 @@ import com.example.blespresso.ui.theme.textprimary_indic
 import com.example.blespresso.ui.theme.textsecondary
 import com.example.blespresso.ui.theme.textsecondary_indic
 import com.example.blespresso.ui.theme.on_accent
+import com.example.blespresso.ui.theme.ThemePrefs
 import com.example.blespresso.ui.theme.icon_off
 import com.example.blespresso.ui.theme.surface
 import com.example.blespresso.ui.theme.textbox_background
@@ -318,7 +319,10 @@ fun RemoteControlScreen(
                     .fillMaxSize()
             ) {
                 //  TOP BAR: 0x1401 mode + state (TODO #9, docs/UX/README.md §8.5) ---------------------
-                StatusTopBar(status = viewModel.machineStatus)
+                StatusTopBar(
+                    status = viewModel.machineStatus,
+                    onToggleTheme = { ThemePrefs.toggle(context) }      // TODO #13
+                )
                 //  FIRST THIRD OF SCREEN
                 //  BOILER TEMPERATURE INDICATOR + STATUS SLOTS -------------------------------------------
                 //  ------------------------------------------------------------------------------------

@@ -10,6 +10,25 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-10-12 — Light/dark theme switch (STATUS TODO #13)
+
+Why: let the user choose Gaggia light or dark in the app (system dark mode ignored).
+
+### Added
+- `res/drawable/ic_theme_light.xml` (sun), `ic_theme_dark.xml` (moon).
+- `ui/theme/ThemePrefs.kt`: `load` / `toggle` / `isDark`; SharedPreferences `ui_prefs`, key
+  `palette` = `gaggia_light` | `gaggia_dark` (missing / unknown -> light).
+- `docs/UX/layout_DarkLightMode_preview.html` + `tools/gen_layout_darklight.py` (approved layout).
+
+### Changed
+- `MainActivity.kt`: `ThemePrefs.load(this)` before `setContent` (first frame in saved theme).
+- `MachineStatusUi.kt`: `StatusTopBar(..., onToggleTheme)` — icon at right end (moon while light,
+  sun while dark). `RemoteControlScreen.kt` passes `ThemePrefs.toggle(context)` (main screen only).
+- `Color.kt`: default `activePalette = PALETTE_GAGGIA_LIGHT`.
+
+### Verified
+- Device: instant switch (app + status bar), kept after app restart, system dark mode ignored.
+
 ## 2026-10-12 — Whole app follows activePalette (STATUS TODO #11)
 
 Why: preparation for the light/dark switch (TODO #13); unstyled UI used Material defaults.

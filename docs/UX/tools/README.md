@@ -7,6 +7,7 @@ Python 3, no dependencies. Run from any folder; paths resolve relative to this f
 | `gen_icons.py` | `docs/UX/option_a/*.svg`, `docs/UX/option_b/*.svg` (edit glyphs in `GLYPHS`) |
 | `gen_preview.py` | `docs/UX/preview.html` (icon grid, both options) |
 | `gen_layout.py` | `docs/UX/layout_preview.html` (L1–L3 layout mocks) |
+| `gen_layout_darklight.py` | `docs/UX/layout_DarkLightMode_preview.html` (L3 + light/dark switch, TODO #13) |
 | `svg2vd.py` | `app/src/main/res/drawable/ic_state_*.xml` from Option A (skips `SKIP`) |
 | `svg2vd_b.py` | same, for the Option B selections (`SKIP` in `svg2vd.py`: 0x04–0x06) |
 
