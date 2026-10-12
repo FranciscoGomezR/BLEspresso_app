@@ -230,14 +230,22 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         Verified 2026-10-11: Android Studio previews OK; changes confirmed on hardware.
         See: docs/CHANGELOG.md -> "2026-10-11 — 0x1401 machine status on screen (STATUS TODO #9)"
 
-- 10[]  OUT OF SCOPE — do not work on it for now.
-        Block WRITE buttons / tx* calls while machine brewing or steaming:
-        disable Write when machineStatus?.state in 0x03..0x08.
+- 10[x] Block WRITE, READ and CONTROLLER buttons / tx* calls while machine brewing or steaming.
         DEPENDS ON: #9 (status visible on screen). Uses machineStatus from #7.
-        DONE WHEN: Write greyed out + tx* not sent while brewing/steaming; enabled otherwise
-        (incl. machineStatus == null).
-        Open (decide when in scope): block Read too? lock preset / brew-table textboxes?
-        block Controller (PID) screen writes? show "machine busy" message?
+        Spec: docs/UX/README.md §8.8. Decisions:
+        - Busy = state 0x03..0x06 or 0x08. Not busy: 0x00-0x02, 0x07 SHOT DONE, 0x10/0x11,
+          unknown, null.
+        - RemoteControlScreen: Read, Write, Controller disabled. ControllerParameterScreen: Read,
+          Write disabled (Main stays enabled). All textboxes read-only.
+        - Inline "Machine busy" text above the button row (both screens).
+        - VM guards writeMachineConfig / writePIDConfig. Reads NOT guarded in VM (auto read on
+          connect fetches 0x1401); Read blocked at the button.
+        DONE WHEN: during 0x03-0x06 / 0x08 buttons greyed, textboxes not editable, double-tap
+        Write sends nothing, "Machine busy" shown; re-enabled at 0x07 / heating / null.
+        Code done (2026-10-12), build passes: RemoteControlViewModel.isMachineBusy + write guards;
+        both screens: enabled/readOnly/message; Write tap gestures guarded (pointerInput(isBusy)).
+        Verified on hardware 2026-10-12.
+        See: docs/CHANGELOG.md -> "2026-10-12 — Busy lock while brewing / steaming (STATUS TODO #10)"
 
 - 11[]  FUTURE. Theme follows system dark mode: palette #7 (Gaggia light) when light,
         #8 (Gaggia dark) when dark.
@@ -253,8 +261,18 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         svg2vd.py skips 0x04–0x06 (Option B, handled by svg2vd_b.py). Re-run reproduces all
         current SVGs, previews and drawables byte-identical.
 
-- []    what onMtuChanged does? explain
+- 13[]  Propose a plan to decouple: Permissions (permissionState.allPermissionsGranted) and BLE connection status (bleConnectionState == ConnectionState.CurrentlyInitializing); from RemoteControlScreen.kt
+        assess if creating a new screen is an elegant/easy implementation. Also, when user pressed "CONNECT TO ESPRESSO MACHINE" and there is no BLE devices found after 10seconds, it shall prompt a message, asking for permision to pass BLe connection, so user can experience the app without interaction; for this particular case; app shall inserts "0" in all paramater from the app and BLE CHAR. 
+        Block WRITE, READ in RemoteControlScreen.kt and ControllerParameterScreen.kt
+
+- 14[]  App shall show at the bottom and at all screens: [App_version] and [Company_Name]
+
+- 15[]  Assess current application's code structure for: BLE functions, Kotlin and android. propose a plan to re-arrange the code to aligned it against good practices and to make it more efficient.
+
+
 - []
+- []    what onMtuChanged does? explain
+
 
 
 - [ ] (SUPERSEDED — keep 3 B per the attribute table above; do not apply) change PID controller parameter Length mentioned below: 

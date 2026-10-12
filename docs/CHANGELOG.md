@@ -10,6 +10,27 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-10-12 — Busy lock while brewing / steaming (STATUS TODO #10)
+
+Why: changing brew / PID parameters during a shot or steam is unsafe and confusing.
+
+### Added
+- `RemoteControlViewModel.isMachineBusy`: 0x1401 state 0x03..0x06 or 0x08.
+  `writeMachineConfig` / `writePIDConfig` return false when busy (reads not guarded: the
+  connect-time read also fetches 0x1401).
+- "Machine busy" line above the button row (reserved 18 dp, no layout jump), both screens.
+
+### Changed
+- `RemoteControlScreen.kt`: Controller / Read / Write disabled while busy; 8 textboxes
+  read-only. `ControllerParameterScreen.kt`: Read / Write disabled (Main enabled); 6 PID
+  textboxes read-only. Disabled look: `surface` background, `icon_off` text.
+- Write double-tap handlers return early when busy; `pointerInput(isBusy)` keeps the check
+  current.
+
+### Verified
+- Hardware: blocked during 0x04–0x06 and 0x08 (both screens), re-enabled at 0x07; double-tap
+  Write sends nothing while busy.
+
 ## 2026-10-11 — 0x1401 machine status on screen (STATUS TODO #9)
 
 Why: show machine mode + state (TODO #7 data) on RemoteControlScreen per docs/UX/README.md §8.

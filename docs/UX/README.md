@@ -272,3 +272,18 @@ Min width: 280 + 16 + 52 = 348 dp (fits 360 dp phones).
 - Each state 0x00–0x11 shows correct slot, drawable, tint, glow, pulse, labels.
 - Controller / Read / Write in one row under the brew table, working as before.
 - Button text readable on both screens (`on_accent`, white on red with #7).
+
+### 8.8 Busy lock (STATUS TODO #10)
+- `RemoteControlViewModel.isMachineBusy` = state in 0x03..0x06 or 0x08 (brewing phases,
+  steaming). Not busy: 0x00–0x02, 0x07 SHOT DONE, 0x10/0x11, unknown, `null`.
+- While busy:
+  - RemoteControlScreen: Controller, Read, Write disabled; ControllerParameterScreen: Read,
+    Write disabled (Main stays enabled).
+  - Disabled look: background `surface`, text `icon_off`.
+  - All BasicTextFields `readOnly`.
+  - Text "Machine busy" (textprimary, 13 sp, centred) in a reserved 18 dp line above the
+    button row (empty when not busy, no layout jump).
+- Write fires on double-tap of its label (`detectTapGestures`): handlers return early when
+  busy; `pointerInput(isBusy)` so the check is never stale.
+- VM: `writeMachineConfig` / `writePIDConfig` return false when busy. Reads are not guarded
+  in the VM (connect-time read also fetches 0x1401).

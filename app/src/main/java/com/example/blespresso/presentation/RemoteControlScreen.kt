@@ -71,6 +71,8 @@ import com.example.blespresso.ui.theme.textprimary_indic
 import com.example.blespresso.ui.theme.textsecondary
 import com.example.blespresso.ui.theme.textsecondary_indic
 import com.example.blespresso.ui.theme.on_accent
+import com.example.blespresso.ui.theme.icon_off
+import com.example.blespresso.ui.theme.surface
 import com.example.blespresso.ui.theme.textbox_background
 import com.example.blespresso.ui.theme.textbox_text
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -306,6 +308,10 @@ fun RemoteControlScreen(
 
             // Get the software keyboard controller
             val keyboardController = LocalSoftwareKeyboardController.current
+            // TODO #10 busy lock (brewing / steaming): buttons disabled, textboxes read-only
+            val isBusy = viewModel.isMachineBusy
+            val busyButtonColors = ButtonDefaults.buttonColors(backgroundColor = accent, disabledBackgroundColor = surface)
+            val busyButtonTextColor = if (isBusy) icon_off else on_accent
             val context = LocalContext.current
             Column(
                 modifier = Modifier
@@ -420,6 +426,7 @@ fun RemoteControlScreen(
                                 //       The logic was moved into CTextBox methods so it lives with the data it
                                 //       operates on, and the global helper functions in RemoteControlScreen.kt were removed.
                                 BasicTextField(
+                                    readOnly = isBusy,
                                     value = cBrewTempPresetTB.userInput,
                                     onValueChange = { newText ->
                                         cBrewTempPresetTB.onValueChange(newText) },
@@ -433,6 +440,7 @@ fun RemoteControlScreen(
                                         keyboardController?.hide() })
                                 )
                                 BasicTextField(
+                                    readOnly = isBusy,
                                     value = cSteamTempPresetTB.userInput,
                                     onValueChange = { newText ->
                                         cSteamTempPresetTB.onValueChange(newText) },
@@ -532,6 +540,7 @@ fun RemoteControlScreen(
                                 // TLDR: Same onValueChange/onDone pattern as the boiler text fields above.
                                 //       Applies to all 6 brew-config fields in this column.
                                 BasicTextField(// Pre Infusion POWER INPUT
+                                    readOnly = isBusy,
                                     value = cPreinfusionPWR_TB.userInput,
                                     onValueChange = { newText ->
                                         cPreinfusionPWR_TB.onValueChange(newText) },
@@ -544,6 +553,7 @@ fun RemoteControlScreen(
                                         keyboardController?.hide() })
                                 )
                                 BasicTextField( // Pre Infusion TIMER INPUT
+                                    readOnly = isBusy,
                                     value = cPreinfusionTMR_TB.userInput,
                                     onValueChange = { newText ->
                                         cPreinfusionTMR_TB.onValueChange(newText)
@@ -558,6 +568,7 @@ fun RemoteControlScreen(
                                     })
                                 )
                                 BasicTextField( //Infusion POWER INPUT
+                                    readOnly = isBusy,
                                     value = cInfusionPWR_TB.userInput,
                                     onValueChange = { newText ->
                                         cInfusionPWR_TB.onValueChange(newText)
@@ -572,6 +583,7 @@ fun RemoteControlScreen(
                                     })
                                 )
                                 BasicTextField( // Infusion TIMER INPUT
+                                    readOnly = isBusy,
                                     value = cInfusionTMR_TB.userInput,
                                     onValueChange = { newText ->
                                         cInfusionTMR_TB.onValueChange(newText)
@@ -586,6 +598,7 @@ fun RemoteControlScreen(
                                     })
                                 )
                                 BasicTextField( //  Declining Pressure POWER INPUT
+                                    readOnly = isBusy,
                                     value = cDeclinPrPWR_TB.userInput,
                                     onValueChange = { newText ->
                                         cDeclinPrPWR_TB.onValueChange(newText)
@@ -600,6 +613,7 @@ fun RemoteControlScreen(
                                     })
                                 )
                                 BasicTextField( // Declining Pressure TIME INPUT
+                                    readOnly = isBusy,
                                     value = cDeclinPrTMR_TB.userInput,
                                     onValueChange = { newText ->
                                         cDeclinPrTMR_TB.onValueChange(newText)
@@ -639,6 +653,11 @@ fun RemoteControlScreen(
                         }
                         //  ROW to allocate the following buttons (TODO #9: one row, directly under
                         //  the brew table): CONTROLLER (left), READ and WRITE (right) ----------------
+                        Text( // TODO #10 busy lock message (space reserved, no layout jump)
+                            text = if (isBusy) "Machine busy" else "",
+                            style = TextStyle(fontSize = 13.sp, color = textprimary, textAlign = TextAlign.Center),
+                            modifier = Modifier.padding(top = 8.dp).size(width = 380.dp, height = 18.dp)
+                        )
                         Row(
                             modifier = Modifier
                                 .padding(start = 0.dp, top = 14.dp, bottom = 14.dp)
@@ -661,14 +680,15 @@ fun RemoteControlScreen(
                                             }
                                         }
                                     },
-                                    colors = ButtonDefaults.buttonColors(backgroundColor = accent),
+                                    enabled = !isBusy,
+                                    colors = busyButtonColors,
                                     modifier = Modifier
                                         .fillMaxWidth(1f)
                                         .height(40.dp)
                                         .wrapContentHeight()
                                 ) {
                                     Text(
-                                        text = "Controller", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = on_accent)
+                                        text = "Controller", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = busyButtonTextColor)
                                     )
                                 }
                             }
@@ -691,14 +711,15 @@ fun RemoteControlScreen(
                                         viewModel.rxReadMachineConfiguration()
                                         Log.d("ScreenBREWconfiguration", "Read configuration Button PRESSED")
                                     },
-                                    colors = ButtonDefaults.buttonColors(backgroundColor = accent),
+                                    enabled = !isBusy,
+                                    colors = busyButtonColors,
                                     modifier = Modifier
                                         .fillMaxWidth(1f)
                                         .height(40.dp)
                                         .wrapContentHeight()
                                 ) {
                                     Text(
-                                        text = "Read", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = on_accent)
+                                        text = "Read", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = busyButtonTextColor)
                                     )
                                 }
                             }
@@ -710,7 +731,8 @@ fun RemoteControlScreen(
                             ) {
                                 Button(
                                     onClick = {},
-                                    colors = ButtonDefaults.buttonColors(backgroundColor = accent),
+                                    enabled = !isBusy,
+                                    colors = busyButtonColors,
                                     modifier = Modifier
                                         .padding(start = 0.dp, top = 0.dp)
                                         .fillMaxWidth(1f)
@@ -720,14 +742,16 @@ fun RemoteControlScreen(
                                     Text(text = "Write",
                                         style = TextStyle(
                                             fontSize = tokens.ButtonType2_Font,
-                                            color = on_accent
+                                            color = busyButtonTextColor
                                         ),
-                                        modifier = Modifier.pointerInput(Unit) {
+                                        modifier = Modifier.pointerInput(isBusy) {
                                             detectTapGestures(
-                                                onTap = {
+                                                onTap = onTap@{
+                                                if (isBusy) return@onTap
                                                     Toast.makeText(context, "click", Toast.LENGTH_SHORT).show()
                                                 },
-                                                onDoubleTap = {
+                                                onDoubleTap = onDoubleTap@{
+                                                if (isBusy) return@onDoubleTap
                                                     // TLDR: Replaced a 50-line block that checked modified && isNotBlank()
                                                     //       for each of the 8 machine-config fields, called the matching
                                                     //       txWrite*() function directly, and reset the flag inline.

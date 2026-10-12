@@ -43,6 +43,11 @@ class  RemoteControlViewModel @Inject constructor(
     var machineStatus by mutableStateOf<MachineStatus?>(null)
         private set
 
+    // TODO #10 busy lock: brewing phases (0x03-0x06) or steaming (0x08). Shot done (0x07),
+    // heating/ready, STEP and null are not busy. Read through machineStatus -> Compose-observed.
+    val isMachineBusy: Boolean
+        get() = machineStatus?.state.let { it != null && (it in 0x03..0x06 || it == 0x08) }
+
     // 0x1404 brew / 0x1405 steam temperature presets (editable)
     var brewTempPreset by mutableStateOf(0f)
         public set
@@ -393,6 +398,10 @@ class  RemoteControlViewModel @Inject constructor(
         pTerm: Float?, iTerm: Float?, iMax: Float?,
         dTerm: Float?, pBoost: Float?, iBoost: Float?
     ): Boolean {
+        if (isMachineBusy) {
+            Log.w("RemoteCtrlViewModel", "writePIDConfig blocked: machine busy")
+            return false
+        }
         var anyModified = false
         pTerm?.let  { txWritePidPTerm(it);  Log.d("RemoteCtrlViewModel", "P Term: $it -> Saved");   anyModified = true }
         iTerm?.let  { txWritePidITerm(it);  Log.d("RemoteCtrlViewModel", "I Term: $it -> Saved");   anyModified = true }
@@ -413,6 +422,10 @@ class  RemoteControlViewModel @Inject constructor(
         infPwr: Float?,    infTmr: Float?,
         declPwr: Float?,   declTmr: Float?
     ): Boolean {
+        if (isMachineBusy) {
+            Log.w("RemoteCtrlViewModel", "writeMachineConfig blocked: machine busy")
+            return false
+        }
         var anyModified = false
         brewTempPreset?.let  { txNewBrewTempPreset(it);  Log.d("RemoteCtrlViewModel", "Brew Temp Preset: $it -> Saved");  anyModified = true }
         steamTempPreset?.let { txNewSteamTempPreset(it); Log.d("RemoteCtrlViewModel", "Steam Temp Preset: $it -> Saved"); anyModified = true }

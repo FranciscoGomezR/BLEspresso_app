@@ -36,6 +36,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -53,6 +54,8 @@ import com.example.blespresso.ui.theme.background
 import com.example.blespresso.ui.theme.textprimary
 import com.example.blespresso.ui.theme.textsecondary
 import com.example.blespresso.ui.theme.on_accent
+import com.example.blespresso.ui.theme.icon_off
+import com.example.blespresso.ui.theme.surface
 import com.example.blespresso.ui.theme.textbox_background
 import com.example.blespresso.ui.theme.textbox_text
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -77,6 +80,10 @@ fun BlespressoCtrlParamScreen(
 
     // Get the software keyboard controller
     val keyboardController = LocalSoftwareKeyboardController.current
+    // TODO #10 busy lock (brewing / steaming): buttons disabled, textboxes read-only
+    val isBusy = viewModel.isMachineBusy
+    val busyButtonColors = ButtonDefaults.buttonColors(backgroundColor = accent, disabledBackgroundColor = surface)
+    val busyButtonTextColor = if (isBusy) icon_off else on_accent
     val context = LocalContext.current
 
     // LaunchedEffect that runs only once when this composable is first composed
@@ -370,6 +377,7 @@ fun BlespressoCtrlParamScreen(
                             //       The logic was moved into CTextBox methods so it lives with the data it operates on.
                             //       The onFocusChanged LPF clamping was also removed: onDone() already covers that case.
                             BasicTextField( // Proportional Term INPUT
+                                readOnly = isBusy,
                                 value = cPterm_TB.userInput,
                                 onValueChange = { newText ->
                                     cPterm_TB.onValueChange(newText)
@@ -393,6 +401,7 @@ fun BlespressoCtrlParamScreen(
                                 })
                             )
                             BasicTextField( // Integral Term INPUT
+                                readOnly = isBusy,
                                 value = cIterm_TB.userInput,
                                 onValueChange = { newText ->
                                     cIterm_TB.onValueChange(newText)
@@ -416,6 +425,7 @@ fun BlespressoCtrlParamScreen(
                                 })
                             )
                             BasicTextField( // Integral limit Term INPUT
+                                readOnly = isBusy,
                                 value = cIlimit_TB.userInput,
                                 onValueChange = { newText ->
                                     cIlimit_TB.onValueChange(newText)
@@ -439,6 +449,7 @@ fun BlespressoCtrlParamScreen(
                                 })
                             )
                             BasicTextField( // Derivatve Term INPUT
+                                readOnly = isBusy,
                                 value = cDterm_TB.userInput,
                                 onValueChange = { newText ->
                                     cDterm_TB.onValueChange(newText)
@@ -462,6 +473,7 @@ fun BlespressoCtrlParamScreen(
                                 })
                             )
                             BasicTextField( // P-Gain Boost INPUT
+                                readOnly = isBusy,
                                 value = cPboost_TB.userInput,
                                 onValueChange = { newText ->
                                     cPboost_TB.onValueChange(newText)
@@ -485,6 +497,7 @@ fun BlespressoCtrlParamScreen(
                                 })
                             )
                             BasicTextField( // I-Gain Boost INPUT
+                                readOnly = isBusy,
                                 value = cIboost_TB.userInput,
                                 onValueChange = { newText ->
                                     cIboost_TB.onValueChange(newText)
@@ -633,6 +646,11 @@ fun BlespressoCtrlParamScreen(
                     }
                     //  ROW to allocate the following buttons:
                     //  To READ and WRITE --------------------------------------------
+                    Text( // TODO #10 busy lock message (space reserved, no layout jump)
+                        text = if (isBusy) "Machine busy" else "",
+                        style = TextStyle(fontSize = 13.sp, color = textprimary, textAlign = TextAlign.Center),
+                        modifier = Modifier.padding(top = 8.dp).size(width = 380.dp, height = 18.dp)
+                    )
                     Row(
                         modifier = Modifier
                             .padding(start = 0.dp, top = 10.dp)
@@ -662,7 +680,8 @@ fun BlespressoCtrlParamScreen(
                                     viewModel.rxReadPIDConfiguration()
                                     Toast.makeText(context, "Reading PID configuration", Toast.LENGTH_SHORT).show()
                                 },
-                                colors = ButtonDefaults.buttonColors(backgroundColor = accent),
+                                enabled = !isBusy,
+                                colors = busyButtonColors,
                                 modifier = Modifier
                                     .fillMaxWidth(1f)
                                     .height(40.dp)
@@ -672,7 +691,7 @@ fun BlespressoCtrlParamScreen(
                                     text = "Read",
                                     style = TextStyle(
                                         fontSize = ButtonType2_Font,
-                                        color = on_accent
+                                        color = busyButtonTextColor
                                     )
                                 )
                             }
@@ -685,7 +704,8 @@ fun BlespressoCtrlParamScreen(
                         ) {
                             Button(
                                 onClick = {},
-                                colors = ButtonDefaults.buttonColors(backgroundColor = accent),
+                                enabled = !isBusy,
+                                colors = busyButtonColors,
                                 modifier = Modifier
                                     .padding(start = 0.dp, top = 0.dp)
                                     .fillMaxWidth(1f)
@@ -695,18 +715,20 @@ fun BlespressoCtrlParamScreen(
                                 Text(text = "Write",
                                     style = TextStyle(
                                         fontSize = ButtonType2_Font,
-                                        color = on_accent
+                                        color = busyButtonTextColor
                                     ),
-                                    modifier = Modifier.pointerInput(Unit) {
+                                    modifier = Modifier.pointerInput(isBusy) {
                                         detectTapGestures(
-                                            onTap = {
+                                            onTap = onTap@{
+                                                if (isBusy) return@onTap
                                                 Toast.makeText(
                                                     context,
                                                     "click",
                                                     Toast.LENGTH_SHORT
                                                 ).show()
                                             },
-                                            onDoubleTap = {
+                                            onDoubleTap = onDoubleTap@{
+                                                if (isBusy) return@onDoubleTap
                                                 // TLDR: Replaced a 40-line block that checked modified && isNotBlank() for
                                                 //       each of the 7 PID fields, called the matching txWritePid*() directly,
                                                 //       and reset the flag inline. Moved all that logic to ViewModel.writePIDConfig().
