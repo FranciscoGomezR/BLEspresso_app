@@ -54,12 +54,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.example.blespresso.data.ConnectionState
-import com.example.blespresso.presentation.permissions.PermissionUtils
 import com.example.blespresso.presentation.permissions.SystemBroadcastReceiver
 import com.example.blespresso.ui.theme.accent
 import com.example.blespresso.ui.theme.accent_indic
@@ -76,8 +74,6 @@ import com.example.blespresso.ui.theme.icon_off
 import com.example.blespresso.ui.theme.surface
 import com.example.blespresso.ui.theme.textbox_background
 import com.example.blespresso.ui.theme.textbox_text
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import kotlinx.coroutines.delay
 
 /*  USEFUL LINKS:
@@ -118,12 +114,12 @@ private object RemoteControlLayout {
     val textFieldHeight = 28.dp
 }
 
-@OptIn(ExperimentalPermissionsApi::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun RemoteControlScreen(
     navController: NavController,
     onBluetoothStateChanged:()->Unit,
-    viewModel: RemoteControlViewModel = hiltViewModel() //// video 1-> Time-Stamp: 1:16:40
+    viewModel: RemoteControlViewModel //// video 1-> Time-Stamp: 1:16:40
     ,tokens: RemoteControlScreenTokens = RemoteControlScreenTokens()
 ){
     //this function will run if there is a change from the phone's control panel
@@ -136,13 +132,10 @@ fun RemoteControlScreen(
             onBluetoothStateChanged()
         }
     }
-    // video 1-> Time-Stamp: 1:15:00
-    //get permissions for our app to run
-    val permissionState = rememberMultiplePermissionsState(permissions = PermissionUtils.permissions)
+    // STATUS #15: permissions, scan and connect UI live in ConnectScreen. Here only the
+    // minimise / restore BLE lifecycle (skipped in demo mode: no machine).
     val lifecycleOwner = LocalLifecycleOwner.current
     val bleConnectionState = viewModel.connectionState
-
-    var MoveToOtherScreen by remember { mutableStateOf(false) }
 
     // TLDR: Replaced 18 lines of per-field min/max assignments (e.g. cBrewTempPresetTB.maxInValue = 150.0f) that scattered
     //       domain knowledge across the composable. Now bounds are read from RemoteControlViewModel companion object
@@ -158,57 +151,28 @@ fun RemoteControlScreen(
     val cDeclinPrPWR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.DECL_PWR_MIN; maxInValue = RemoteControlViewModel.DECL_PWR_MAX } }
     val cDeclinPrTMR_TB = remember { CTextBox().apply { minInValue = RemoteControlViewModel.DECL_TMR_MIN; maxInValue = RemoteControlViewModel.DECL_TMR_MAX } }
 
-    DisposableEffect(
-        key1 = lifecycleOwner,
-        effect = {
-            val observer = LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_START) {
-                    Log.d("ScreenNavigation", "Disposable Effect - cycle event ON_START")
-                    // video 1-> Time-Stamp: 1:17:40
-                    //request permissions
-                    permissionState.launchMultiplePermissionRequest()
-                    //this is the case when user already had a connection and minimize the app, then connection state will be disconnected
-                    if (permissionState.allPermissionsGranted && bleConnectionState == ConnectionState.Disconnected) {
-                        //then reconnect
-                        viewModel.reconnect()
-                    }
-                }
-                // video 1-> Time-Stamp: 1:18:30
-                /*
-                if (event == Lifecycle.Event.ON_STOP && !MoveToOtherScreen) {
-                    Log.d("ScreenNavigation", "Disposable Effect - cycle event ON_STOP")
-                    if (bleConnectionState == ConnectionState.Connected) {
-                        viewModel.disconnect()
-                    }
-                }
-                */
-
-                if (event == Lifecycle.Event.ON_STOP ) {
-                    Log.d("ScreenNavigation", "Disposable Effect - cycle event ON_STOP")
-                    if (bleConnectionState == ConnectionState.Connected) {
-                        viewModel.disconnect()
-                    }
-                }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (viewModel.isDemoMode) return@LifecycleEventObserver
+            //user already had a connection and minimised the app -> reconnect
+            if (event == Lifecycle.Event.ON_START && viewModel.connectionState == ConnectionState.Disconnected) {
+                Log.d("ScreenNavigation", "Disposable Effect - cycle event ON_START")
+                viewModel.reconnect()
             }
-            lifecycleOwner.lifecycle.addObserver(observer)
-
-            onDispose {
-                lifecycleOwner.lifecycle.removeObserver(observer)
+            if (event == Lifecycle.Event.ON_STOP && viewModel.connectionState == ConnectionState.Connected) {
+                Log.d("ScreenNavigation", "Disposable Effect - cycle event ON_STOP")
+                viewModel.disconnect()
             }
         }
-    )
-    // video 1-> Time-Stamp: 1:19:25
-    LaunchedEffect(
-        key1 = permissionState.allPermissionsGranted
-    )
-    {
-        if (permissionState.allPermissionsGranted) {
-            Log.d("ScreenNavigation", "Launched Effect - permission granted")
-            //if all permission are granted
-            if (bleConnectionState == ConnectionState.Uninitialized) {
-                Log.d("ScreenNavigation", "Trigger a BLE connection")
-                //this function will trigger if connection is uninitialized
-                viewModel.initiazeConnection()
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // STATUS #15: connection lost for good (reconnect failed) -> back to ConnectScreen.
+    LaunchedEffect(viewModel.errorMessage) {
+        if (!viewModel.isDemoMode && viewModel.errorMessage != null) {
+            navController.navigate(Screen.ConnectScreen.route) {
+                popUpTo(Screen.BlespressoMainScreen.route) { inclusive = true }
             }
         }
     }
@@ -248,553 +212,496 @@ fun RemoteControlScreen(
             .background(background_indic),
         contentAlignment = Alignment.Center
     ) {
-        if (bleConnectionState == ConnectionState.CurrentlyInitializing ) {
-            Box(
-                modifier = Modifier
-                    .size(220.dp)
-                    .clip(CircleShape)
-                    .background(accent_indic, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .size(220.dp),
-                    color = textsecondary_indic,
-                    strokeWidth = 10.dp
-                )
-                if (viewModel.initialazingMessage != null) {
-                    Text(
-                        text = viewModel.initialazingMessage!!,
-                        //text = " Scanning\n for\n Espresso Machine",
-                        color = textprimary_indic,
-                        textAlign = TextAlign.Center
-                    )
+        var isFocused by remember { mutableStateOf(false) }
 
-                }
-            }
-        } else if (!permissionState.allPermissionsGranted ) //if not all permission are granted
-        {
-            // video 1-> Time-Stamp: 1:22:50
-            Text(
-                text = "Go to app setting and allow missing permissions.",
-                style = MaterialTheme.typography.body2,
-                modifier = Modifier.padding(10.dp),
-                textAlign = TextAlign.Center
+        // Get the software keyboard controller
+        val keyboardController = LocalSoftwareKeyboardController.current
+        // TODO #10 busy lock (brewing / steaming): buttons disabled, textboxes read-only
+        // STATUS #15: also locked in demo mode (Controller button only on busy)
+        val isBusy = viewModel.isUiLocked
+        val busyButtonColors = ButtonDefaults.buttonColors(backgroundColor = accent, disabledBackgroundColor = surface)
+        val busyButtonTextColor = if (isBusy) icon_off else on_accent
+        val context = LocalContext.current
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            //  TOP BAR: 0x1401 mode + state (TODO #9, docs/UX/README.md §8.5) ---------------------
+            StatusTopBar(
+                status = viewModel.machineStatus,
+                onToggleTheme = { ThemePrefs.toggle(context) }      // TODO #13
             )
-        } else if (viewModel.errorMessage != null ) {
-            // video 1-> Time-Stamp: 1:24:00
-            Column(
+            //  FIRST THIRD OF SCREEN
+            //  BOILER TEMPERATURE INDICATOR + STATUS SLOTS -------------------------------------------
+            //  ------------------------------------------------------------------------------------
+            Row(
                 modifier = Modifier
-                    .fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .weight(0.7f)
+                    .fillMaxWidth()
             ) {
-                Text(
-                    text = viewModel.errorMessage!!
-                )
-                Button(
-                    onClick = {
-                        if (permissionState.allPermissionsGranted) {
-                            viewModel.initiazeConnection()
-                        }
-                    }
-                ) {
-                    Text(
-                        text = "Try again."
-                    )
-                }
-            }
-        } else {
-            var isFocused by remember { mutableStateOf(false) }
-
-            // Get the software keyboard controller
-            val keyboardController = LocalSoftwareKeyboardController.current
-            // TODO #10 busy lock (brewing / steaming): buttons disabled, textboxes read-only
-            val isBusy = viewModel.isMachineBusy
-            val busyButtonColors = ButtonDefaults.buttonColors(backgroundColor = accent, disabledBackgroundColor = surface)
-            val busyButtonTextColor = if (isBusy) icon_off else on_accent
-            val context = LocalContext.current
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                //  TOP BAR: 0x1401 mode + state (TODO #9, docs/UX/README.md §8.5) ---------------------
-                StatusTopBar(
-                    status = viewModel.machineStatus,
-                    onToggleTheme = { ThemePrefs.toggle(context) }      // TODO #13
-                )
-                //  FIRST THIRD OF SCREEN
-                //  BOILER TEMPERATURE INDICATOR + STATUS SLOTS -------------------------------------------
-                //  ------------------------------------------------------------------------------------
+                // Content for the first row: dial + 16 dp + slot column, centred as one group
                 Row(
                     modifier = Modifier
-                        .weight(0.7f)
-                        .fillMaxWidth()
+                        .fillMaxSize()
+                        .background(background_indic),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Content for the first row: dial + 16 dp + slot column, centred as one group
+                    //Log.d("TemperatureScreen","Print Temp Value: ${viewModel.boilerWaterTemp}")
+                    BoilerTemperatureProgressIndicator(
+                        modifier = Modifier
+                            .size(280.dp)
+                            .background(background_indic),
+                        boilerWaterTemp = viewModel.boilerWaterTemp,
+                        boilerTempSetpoint = viewModel.boilerTempSetpoint,
+                        primaryColor = accent_indic,
+                        secondaryColor = surface_indic,
+                        primaryTextColor = textprimary_indic,
+                        secondaryTextColor = textsecondary_indic,
+                        circleRadius = 280f,
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    StatusSlotColumn(status = viewModel.machineStatus)
+                }
+            }
+            //  SECOND THIRD OF SCREEN
+            //  BOILER TEMP & BREW CONFIGURATION ---------------------------------------------------
+            //  ------------------------------------------------------------------------------------
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .background(background)
+                    .padding(top = 1.dp, bottom = 1.dp) // Add spacing between rows
+            ) {
+                // Content for the second row
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(5.dp)
+                ) {
+                    //  BOILER CONFIGURATION MENU
+                    //  ----------------------------------------------------------------------------
+                    Row(    // Title Row
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Machine Configuration",
+                            modifier = Modifier.padding(start = 10.dp),
+                            style = TextStyle(
+                                fontSize = 17.sp,
+                                color = textprimary
+                            )
+                        )
+                    }
+                    Divider( //  TITLE DIVIDER   ---------------------------------------------------
+                        color = textprimary,
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+                            .size(width = 380.dp, height = 1.dp)
+                    )
                     Row(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .background(background_indic),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(start = 10.dp)
+                            .size(width = 380.dp, height = 60.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        //Log.d("TemperatureScreen","Print Temp Value: ${viewModel.boilerWaterTemp}")
-                        BoilerTemperatureProgressIndicator(
-                            modifier = Modifier
-                                .size(280.dp)
-                                .background(background_indic),
-                            boilerWaterTemp = viewModel.boilerWaterTemp,
-                            boilerTempSetpoint = viewModel.boilerTempSetpoint,
-                            primaryColor = accent_indic,
-                            secondaryColor = surface_indic,
-                            primaryTextColor = textprimary_indic,
-                            secondaryTextColor = textsecondary_indic,
-                            circleRadius = 280f,
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        StatusSlotColumn(status = viewModel.machineStatus)
-                    }
-                }
-                //  SECOND THIRD OF SCREEN
-                //  BOILER TEMP & BREW CONFIGURATION ---------------------------------------------------
-                //  ------------------------------------------------------------------------------------
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .background(background)
-                        .padding(top = 1.dp, bottom = 1.dp) // Add spacing between rows
-                ) {
-                    // Content for the second row
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(5.dp)
-                    ) {
-                        //  BOILER CONFIGURATION MENU
-                        //  ----------------------------------------------------------------------------
-                        Row(    // Title Row
-                            modifier = Modifier.fillMaxWidth()
+                        //A  Row containing column has a span/weight of 8f
+                        Column( // 1 COLUMN → Target Temperature text------------------------
+                            modifier = Modifier.weight(3f).padding(start = 15.dp, top = 2.dp)
                         ) {
-                            Text(
-                                text = "Machine Configuration",
-                                modifier = Modifier.padding(start = 10.dp),
-                                style = TextStyle(
-                                    fontSize = 17.sp,
-                                    color = textprimary
-                                )
+                            Text( text = "Brew Temperature:",
+                                style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
+                            )
+                            Text( text = "Steam Temperature:",
+                                style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
                             )
                         }
-                        Divider( //  TITLE DIVIDER   ---------------------------------------------------
-                            color = textprimary,
-                            modifier = Modifier
-                                .padding(start = 10.dp)
-                                .size(width = 380.dp, height = 1.dp)
-                        )
-                        Row(
-                            modifier = Modifier
-                                .padding(start = 10.dp)
-                                .size(width = 380.dp, height = 60.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceEvenly
+                        Column( // 2 COLUMN → Target Temperature text------------------------
+                            modifier = Modifier.weight(2f).padding(start = 15.dp, top = 2.dp)
                         ) {
-                            //A  Row containing column has a span/weight of 8f
-                            Column( // 1 COLUMN → Target Temperature text------------------------
-                                modifier = Modifier.weight(3f).padding(start = 15.dp, top = 2.dp)
-                            ) {
-                                Text( text = "Brew Temperature:",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
-                                )
-                                Text( text = "Steam Temperature:",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
-                                )
-                            }
-                            Column( // 2 COLUMN → Target Temperature text------------------------
-                                modifier = Modifier.weight(2f).padding(start = 15.dp, top = 2.dp)
-                            ) {
-                                Text( text = "(${RemoteControlViewModel.BREW_TEMP_PRESET_MIN.toInt()} - ${RemoteControlViewModel.BREW_TEMP_PRESET_MAX.toInt()}°C)",
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary, fontStyle = FontStyle.Italic), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
-                                )
-                                Text( text = "(${RemoteControlViewModel.STEAM_TEMP_PRESET_MIN.toInt()} - ${RemoteControlViewModel.STEAM_TEMP_PRESET_MAX.toInt()}°C)",
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary, fontStyle = FontStyle.Italic), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
-                                )
-                            }
-                            Column( // 3 COLUMN → 2f Target Value--------------------------
-                                modifier = Modifier.weight(2f).padding(top = 2.dp),
-                                horizontalAlignment = Alignment. CenterHorizontally
-                            ) {
-                                // TLDR: Replaced processTextFieldInput(newText, cXxx_TB) global function calls with
-                                //       cXxx_TB.onValueChange(newText) and processKeyboardDoneEvent(cXxx_TB) with
-                                //       cXxx_TB.onDone() across all BasicTextFields on this screen.
-                                //       The logic was moved into CTextBox methods so it lives with the data it
-                                //       operates on, and the global helper functions in RemoteControlScreen.kt were removed.
-                                BasicTextField(
-                                    readOnly = isBusy,
-                                    value = cBrewTempPresetTB.userInput,
-                                    onValueChange = { newText ->
-                                        cBrewTempPresetTB.onValueChange(newText) },
-                                    cursorBrush = SolidColor(Unspecified),
-                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically)
-                                                        .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        cBrewTempPresetTB.onDone()
-                                        keyboardController?.hide() })
-                                )
-                                BasicTextField(
-                                    readOnly = isBusy,
-                                    value = cSteamTempPresetTB.userInput,
-                                    onValueChange = { newText ->
-                                        cSteamTempPresetTB.onValueChange(newText) },
-                                    cursorBrush = SolidColor(Unspecified),
-                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically)
-                                        .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        cSteamTempPresetTB.onDone()
-                                        keyboardController?.hide() })
-                                )
-                            }
-                            Column( // 4 COLUMN → 1f Units--------------------------
-                                modifier = Modifier.weight(1f).padding(top = 2.dp),
-                                horizontalAlignment = Alignment. CenterHorizontally
-                            ) {
-                                Text(text = "°C",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(text = "°C",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                            }
+                            Text( text = "(${RemoteControlViewModel.BREW_TEMP_PRESET_MIN.toInt()} - ${RemoteControlViewModel.BREW_TEMP_PRESET_MAX.toInt()}°C)",
+                                style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary, fontStyle = FontStyle.Italic), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
+                            )
+                            Text( text = "(${RemoteControlViewModel.STEAM_TEMP_PRESET_MIN.toInt()} - ${RemoteControlViewModel.STEAM_TEMP_PRESET_MAX.toInt()}°C)",
+                                style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary, fontStyle = FontStyle.Italic), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically)
+                            )
+                        }
+                        Column( // 3 COLUMN → 2f Target Value--------------------------
+                            modifier = Modifier.weight(2f).padding(top = 2.dp),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) {
+                            // TLDR: Replaced processTextFieldInput(newText, cXxx_TB) global function calls with
+                            //       cXxx_TB.onValueChange(newText) and processKeyboardDoneEvent(cXxx_TB) with
+                            //       cXxx_TB.onDone() across all BasicTextFields on this screen.
+                            //       The logic was moved into CTextBox methods so it lives with the data it
+                            //       operates on, and the global helper functions in RemoteControlScreen.kt were removed.
+                            BasicTextField(
+                                readOnly = isBusy,
+                                value = cBrewTempPresetTB.userInput,
+                                onValueChange = { newText ->
+                                    cBrewTempPresetTB.onValueChange(newText) },
+                                cursorBrush = SolidColor(Unspecified),
+                                textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically)
+                                                    .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cBrewTempPresetTB.onDone()
+                                    keyboardController?.hide() })
+                            )
+                            BasicTextField(
+                                readOnly = isBusy,
+                                value = cSteamTempPresetTB.userInput,
+                                onValueChange = { newText ->
+                                    cSteamTempPresetTB.onValueChange(newText) },
+                                cursorBrush = SolidColor(Unspecified),
+                                textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically)
+                                    .fillMaxWidth().clip(RoundedCornerShape(6.dp) ),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cSteamTempPresetTB.onDone()
+                                    keyboardController?.hide() })
+                            )
+                        }
+                        Column( // 4 COLUMN → 1f Units--------------------------
+                            modifier = Modifier.weight(1f).padding(top = 2.dp),
+                            horizontalAlignment = Alignment. CenterHorizontally
+                        ) {
+                            Text(text = "°C",
+                                style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(text = "°C",
+                                style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textsecondary), modifier = Modifier.height(30.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                        }
 
-                        }
-                        //  BREW CONFIGURATION MENU
-                        //  ----------------------------------------------------------------------------
-                        //  TABLE PARAMETER TITLE   ----------------------------------------------------
-                        Row(
-                            modifier = Modifier
-                                .padding(start = 10.dp)
-                                .size(width = 380.dp, height = 18.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {}
-                        /*
-                        Divider( //  TITLE DIVIDER   ---------------------------------------------------
-                            color = textsecondary,
-                            modifier = Modifier.padding(start = 10.dp).size(width = 380.dp, height = 1.dp)
-                        )*/
-                        //  Brew Table Content  --------------------------------------------------------
-                        Row( //thiw row configure the size of the space allocated for the Bre table
-                            modifier = Modifier
-                                .padding(start = 10.dp)
-                                .size(width = 380.dp, height = 180.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly ,
-                            verticalAlignment = Alignment.Top,
+                    }
+                    //  BREW CONFIGURATION MENU
+                    //  ----------------------------------------------------------------------------
+                    //  TABLE PARAMETER TITLE   ----------------------------------------------------
+                    Row(
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+                            .size(width = 380.dp, height = 18.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {}
+                    /*
+                    Divider( //  TITLE DIVIDER   ---------------------------------------------------
+                        color = textsecondary,
+                        modifier = Modifier.padding(start = 10.dp).size(width = 380.dp, height = 1.dp)
+                    )*/
+                    //  Brew Table Content  --------------------------------------------------------
+                    Row( //thiw row configure the size of the space allocated for the Bre table
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+                            .size(width = 380.dp, height = 180.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly ,
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Column( // 1 COLUMN → Parameters------------------------
+                            modifier = Modifier.weight(3f).padding(start = 15.dp, top = 2.dp)
                         ) {
-                            Column( // 1 COLUMN → Parameters------------------------
-                                modifier = Modifier.weight(3f).padding(start = 15.dp, top = 2.dp)
-                            ) {
-                                Text(
-                                    text = "Pre-Infusion",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "Infusion",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "Declining Pressure",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "",
-                                    style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                            }
-                            Column( // 2 COLUMN → Input Range--------------------------
-                                modifier = Modifier.weight(2f).padding(top = 2.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = "(" + cPreinfusionPWR_TB.minInValue.toString() + " - " + cPreinfusionPWR_TB.maxInValue.toString() + ")",
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "(" + cPreinfusionTMR_TB.minInValue.toString() + " - " + cPreinfusionTMR_TB.maxInValue.toString() + ")",
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "(" + cInfusionPWR_TB.minInValue.toString() + " - " + cInfusionPWR_TB.maxInValue.toString() + ")",
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "(" + cInfusionTMR_TB.minInValue.toString() + " - " + cInfusionTMR_TB.maxInValue.toString() + ")",
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "(" + cDeclinPrPWR_TB.minInValue.toString() + " - " + cDeclinPrPWR_TB.maxInValue.toString() + ")",
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "(" + cDeclinPrTMR_TB.minInValue.toString() + " - " + cDeclinPrTMR_TB.maxInValue.toString() + ")",
-                                    style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                            }
-                            Column( // 3 COLUMN → VALUE----------------------------
-                                modifier = Modifier.weight(2f).padding(top = 2.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                // TLDR: Same onValueChange/onDone pattern as the boiler text fields above.
-                                //       Applies to all 6 brew-config fields in this column.
-                                BasicTextField(// Pre Infusion POWER INPUT
-                                    readOnly = isBusy,
-                                    value = cPreinfusionPWR_TB.userInput,
-                                    onValueChange = { newText ->
-                                        cPreinfusionPWR_TB.onValueChange(newText) },
-                                    cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        cPreinfusionPWR_TB.onDone()
-                                        keyboardController?.hide() })
-                                )
-                                BasicTextField( // Pre Infusion TIMER INPUT
-                                    readOnly = isBusy,
-                                    value = cPreinfusionTMR_TB.userInput,
-                                    onValueChange = { newText ->
-                                        cPreinfusionTMR_TB.onValueChange(newText)
-                                    },
-                                    cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        cPreinfusionTMR_TB.onDone()
-                                        keyboardController?.hide()
-                                    })
-                                )
-                                BasicTextField( //Infusion POWER INPUT
-                                    readOnly = isBusy,
-                                    value = cInfusionPWR_TB.userInput,
-                                    onValueChange = { newText ->
-                                        cInfusionPWR_TB.onValueChange(newText)
-                                    },
-                                    cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        cInfusionPWR_TB.onDone()
-                                        keyboardController?.hide()
-                                    })
-                                )
-                                BasicTextField( // Infusion TIMER INPUT
-                                    readOnly = isBusy,
-                                    value = cInfusionTMR_TB.userInput,
-                                    onValueChange = { newText ->
-                                        cInfusionTMR_TB.onValueChange(newText)
-                                    },
-                                    cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        cInfusionTMR_TB.onDone()
-                                        keyboardController?.hide()
-                                    })
-                                )
-                                BasicTextField( //  Declining Pressure POWER INPUT
-                                    readOnly = isBusy,
-                                    value = cDeclinPrPWR_TB.userInput,
-                                    onValueChange = { newText ->
-                                        cDeclinPrPWR_TB.onValueChange(newText)
-                                    },
-                                    cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        cDeclinPrPWR_TB.onDone()
-                                        keyboardController?.hide()
-                                    })
-                                )
-                                BasicTextField( // Declining Pressure TIME INPUT
-                                    readOnly = isBusy,
-                                    value = cDeclinPrTMR_TB.userInput,
-                                    onValueChange = { newText ->
-                                        cDeclinPrTMR_TB.onValueChange(newText)
-                                    },
-                                    cursorBrush = SolidColor(accent),
-                                    textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
-                                    modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        cDeclinPrTMR_TB.onDone()
-                                        keyboardController?.hide()
-                                    })
-                                )
-                            }
-                            Column(// 4 COLUMN → Units----------------------------
-                                modifier = Modifier.weight(1f).padding(top = 2.dp, start = 12.dp),
-                            ) {
-                                Text(
-                                    text = "%",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "sec",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "%",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "sec",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "%",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                                Text(
-                                    text = "sec",
-                                    style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
-                            }
+                            Text(
+                                text = "Pre-Infusion",
+                                style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "",
+                                style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "Infusion",
+                                style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "",
+                                style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "Declining Pressure",
+                                style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "",
+                                style = TextStyle(fontSize = tokens.TParameter_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
                         }
-                        //  ROW to allocate the following buttons (TODO #9: one row, directly under
-                        //  the brew table): CONTROLLER (left), READ and WRITE (right) ----------------
-                        Text( // TODO #10 busy lock message (space reserved, no layout jump)
-                            text = if (isBusy) "Machine busy" else "",
-                            style = TextStyle(fontSize = 13.sp, color = textprimary, textAlign = TextAlign.Center),
-                            modifier = Modifier.padding(top = 8.dp).size(width = 380.dp, height = 18.dp)
-                        )
-                        Row(
-                            modifier = Modifier
-                                .padding(start = 0.dp, top = 14.dp, bottom = 14.dp)
-                                .size(width = 380.dp, height = 50.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
+                        Column( // 2 COLUMN → Input Range--------------------------
+                            modifier = Modifier.weight(2f).padding(top = 2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Column( // 1 COLUMN → Button: CONTROLLER-PARAMETERS --------------------------
-                                modifier = Modifier
-                                    .weight(0.4f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Button(
-                                    onClick = {
-                                        MoveToOtherScreen = true
-                                        navController.navigate(Screen.BlespressoCtrlParamScreen.route) {
-                                            popUpTo(Screen.BlespressoMainScreen.route) {
-                                                inclusive = true
-                                            }
+                            Text(
+                                text = "(" + cPreinfusionPWR_TB.minInValue.toString() + " - " + cPreinfusionPWR_TB.maxInValue.toString() + ")",
+                                style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "(" + cPreinfusionTMR_TB.minInValue.toString() + " - " + cPreinfusionTMR_TB.maxInValue.toString() + ")",
+                                style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "(" + cInfusionPWR_TB.minInValue.toString() + " - " + cInfusionPWR_TB.maxInValue.toString() + ")",
+                                style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "(" + cInfusionTMR_TB.minInValue.toString() + " - " + cInfusionTMR_TB.maxInValue.toString() + ")",
+                                style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "(" + cDeclinPrPWR_TB.minInValue.toString() + " - " + cDeclinPrPWR_TB.maxInValue.toString() + ")",
+                                style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "(" + cDeclinPrTMR_TB.minInValue.toString() + " - " + cDeclinPrTMR_TB.maxInValue.toString() + ")",
+                                style = TextStyle(fontSize = tokens.MinMaxParam_fontsize, color = textsecondary,fontStyle = FontStyle.Italic),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                        }
+                        Column( // 3 COLUMN → VALUE----------------------------
+                            modifier = Modifier.weight(2f).padding(top = 2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // TLDR: Same onValueChange/onDone pattern as the boiler text fields above.
+                            //       Applies to all 6 brew-config fields in this column.
+                            BasicTextField(// Pre Infusion POWER INPUT
+                                readOnly = isBusy,
+                                value = cPreinfusionPWR_TB.userInput,
+                                onValueChange = { newText ->
+                                    cPreinfusionPWR_TB.onValueChange(newText) },
+                                cursorBrush = SolidColor(accent),
+                                textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cPreinfusionPWR_TB.onDone()
+                                    keyboardController?.hide() })
+                            )
+                            BasicTextField( // Pre Infusion TIMER INPUT
+                                readOnly = isBusy,
+                                value = cPreinfusionTMR_TB.userInput,
+                                onValueChange = { newText ->
+                                    cPreinfusionTMR_TB.onValueChange(newText)
+                                },
+                                cursorBrush = SolidColor(accent),
+                                textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cPreinfusionTMR_TB.onDone()
+                                    keyboardController?.hide()
+                                })
+                            )
+                            BasicTextField( //Infusion POWER INPUT
+                                readOnly = isBusy,
+                                value = cInfusionPWR_TB.userInput,
+                                onValueChange = { newText ->
+                                    cInfusionPWR_TB.onValueChange(newText)
+                                },
+                                cursorBrush = SolidColor(accent),
+                                textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cInfusionPWR_TB.onDone()
+                                    keyboardController?.hide()
+                                })
+                            )
+                            BasicTextField( // Infusion TIMER INPUT
+                                readOnly = isBusy,
+                                value = cInfusionTMR_TB.userInput,
+                                onValueChange = { newText ->
+                                    cInfusionTMR_TB.onValueChange(newText)
+                                },
+                                cursorBrush = SolidColor(accent),
+                                textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cInfusionTMR_TB.onDone()
+                                    keyboardController?.hide()
+                                })
+                            )
+                            BasicTextField( //  Declining Pressure POWER INPUT
+                                readOnly = isBusy,
+                                value = cDeclinPrPWR_TB.userInput,
+                                onValueChange = { newText ->
+                                    cDeclinPrPWR_TB.onValueChange(newText)
+                                },
+                                cursorBrush = SolidColor(accent),
+                                textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cDeclinPrPWR_TB.onDone()
+                                    keyboardController?.hide()
+                                })
+                            )
+                            BasicTextField( // Declining Pressure TIME INPUT
+                                readOnly = isBusy,
+                                value = cDeclinPrTMR_TB.userInput,
+                                onValueChange = { newText ->
+                                    cDeclinPrTMR_TB.onValueChange(newText)
+                                },
+                                cursorBrush = SolidColor(accent),
+                                textStyle = TextStyle(color = textbox_text, fontSize = tokens.ParamValue_fontsize,textAlign = TextAlign.Center),
+                                modifier = Modifier.height(28.dp).background(textbox_background).wrapContentHeight(align = Alignment.CenterVertically),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(onDone = {
+                                    cDeclinPrTMR_TB.onDone()
+                                    keyboardController?.hide()
+                                })
+                            )
+                        }
+                        Column(// 4 COLUMN → Units----------------------------
+                            modifier = Modifier.weight(1f).padding(top = 2.dp, start = 12.dp),
+                        ) {
+                            Text(
+                                text = "%",
+                                style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "sec",
+                                style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "%",
+                                style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "sec",
+                                style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "%",
+                                style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                            Text(
+                                text = "sec",
+                                style = TextStyle(fontSize = tokens.TableParam_fontsize, color = textprimary),modifier = Modifier.height(28.dp).wrapContentHeight(align = Alignment.CenterVertically))
+                        }
+                    }
+                    //  ROW to allocate the following buttons (TODO #9: one row, directly under
+                    //  the brew table): CONTROLLER (left), READ and WRITE (right) ----------------
+                    Text( // TODO #10 busy lock message (space reserved, no layout jump)
+                        text = viewModel.lockMessage,
+                        style = TextStyle(fontSize = 13.sp, color = textprimary, textAlign = TextAlign.Center),
+                        modifier = Modifier.padding(top = 8.dp).size(width = 380.dp, height = 18.dp)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .padding(start = 0.dp, top = 14.dp, bottom = 14.dp)
+                            .size(width = 380.dp, height = 50.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column( // 1 COLUMN → Button: CONTROLLER-PARAMETERS --------------------------
+                            modifier = Modifier
+                                .weight(0.4f)
+                                .padding(top = 0.dp, start = 5.dp, end = 5.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Button(
+                                onClick = {
+                                    navController.navigate(Screen.BlespressoCtrlParamScreen.route) {
+                                        popUpTo(Screen.BlespressoMainScreen.route) {
+                                            inclusive = true
                                         }
-                                    },
-                                    enabled = !isBusy,
-                                    colors = busyButtonColors,
-                                    modifier = Modifier
-                                        .fillMaxWidth(1f)
-                                        .height(40.dp)
-                                        .wrapContentHeight()
-                                ) {
-                                    Text(
-                                        text = "Controller", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = busyButtonTextColor)
-                                    )
-                                }
+                                    }
+                                },
+                                enabled = !viewModel.isMachineBusy,
+                                colors = busyButtonColors,
+                                modifier = Modifier
+                                    .fillMaxWidth(1f)
+                                    .height(40.dp)
+                                    .wrapContentHeight()
+                            ) {
+                                Text(
+                                    text = "Controller", style = TextStyle(fontSize = tokens.ButtonType2_Font,
+                                        color = if (viewModel.isMachineBusy) icon_off else on_accent)
+                                )
                             }
+                        }
 
-                            Column( // 1 COLUMN → Button To Read --------------------------
+                        Column( // 1 COLUMN → Button To Read --------------------------
+                            modifier = Modifier
+                                .weight(0.3f)
+                                .padding(top = 0.dp, start = 5.dp, end = 5.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Button(
+                                // TLDR: Removed passTempValModeltoVar = true and passRxvalfromBLEtoVar = true assignments.
+                                //       Previously those flags triggered two separate LaunchedEffects to delay and copy
+                                //       BLE data into text fields. Now rxReadMachineConfiguration() handles the delay
+                                //       and emits machineConfigLoaded when data is ready.
+                                onClick = {
+                                    keyboardController?.hide()      // Hide the keyboard when the button is clicked
+                                    /* Handle button click → READ all 8 machine UUIDs via single GATT-safe queue */
+                                    Toast.makeText(context, "Reading Machine configuration", Toast.LENGTH_SHORT).show()
+                                    viewModel.rxReadMachineConfiguration()
+                                    Log.d("ScreenBREWconfiguration", "Read configuration Button PRESSED")
+                                },
+                                enabled = !isBusy,
+                                colors = busyButtonColors,
                                 modifier = Modifier
-                                    .weight(0.3f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                    .fillMaxWidth(1f)
+                                    .height(40.dp)
+                                    .wrapContentHeight()
                             ) {
-                                Button(
-                                    // TLDR: Removed passTempValModeltoVar = true and passRxvalfromBLEtoVar = true assignments.
-                                    //       Previously those flags triggered two separate LaunchedEffects to delay and copy
-                                    //       BLE data into text fields. Now rxReadMachineConfiguration() handles the delay
-                                    //       and emits machineConfigLoaded when data is ready.
-                                    onClick = {
-                                        keyboardController?.hide()      // Hide the keyboard when the button is clicked
-                                        /* Handle button click → READ all 8 machine UUIDs via single GATT-safe queue */
-                                        Toast.makeText(context, "Reading Machine configuration", Toast.LENGTH_SHORT).show()
-                                        viewModel.rxReadMachineConfiguration()
-                                        Log.d("ScreenBREWconfiguration", "Read configuration Button PRESSED")
-                                    },
-                                    enabled = !isBusy,
-                                    colors = busyButtonColors,
-                                    modifier = Modifier
-                                        .fillMaxWidth(1f)
-                                        .height(40.dp)
-                                        .wrapContentHeight()
-                                ) {
-                                    Text(
-                                        text = "Read", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = busyButtonTextColor)
-                                    )
-                                }
+                                Text(
+                                    text = "Read", style = TextStyle(fontSize = tokens.ButtonType2_Font, color = busyButtonTextColor)
+                                )
                             }
-                            Column( // 2 COLUMN → Button to Write --------------------------
+                        }
+                        Column( // 2 COLUMN → Button to Write --------------------------
+                            modifier = Modifier
+                                .weight(0.3f)
+                                .padding(top = 0.dp, start = 5.dp, end = 5.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Button(
+                                onClick = {},
+                                enabled = !isBusy,
+                                colors = busyButtonColors,
                                 modifier = Modifier
-                                    .weight(0.3f)
-                                    .padding(top = 0.dp, start = 5.dp, end = 5.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                    .padding(start = 0.dp, top = 0.dp)
+                                    .fillMaxWidth(1f)
+                                    .height(40.dp)
+                                    .wrapContentHeight()
                             ) {
-                                Button(
-                                    onClick = {},
-                                    enabled = !isBusy,
-                                    colors = busyButtonColors,
-                                    modifier = Modifier
-                                        .padding(start = 0.dp, top = 0.dp)
-                                        .fillMaxWidth(1f)
-                                        .height(40.dp)
-                                        .wrapContentHeight()
-                                ) {
-                                    Text(text = "Write",
-                                        style = TextStyle(
-                                            fontSize = tokens.ButtonType2_Font,
-                                            color = busyButtonTextColor
-                                        ),
-                                        modifier = Modifier.pointerInput(isBusy) {
-                                            detectTapGestures(
-                                                onTap = onTap@{
-                                                if (isBusy) return@onTap
-                                                    Toast.makeText(context, "click", Toast.LENGTH_SHORT).show()
-                                                },
-                                                onDoubleTap = onDoubleTap@{
-                                                if (isBusy) return@onDoubleTap
-                                                    // TLDR: Replaced a 50-line block that checked modified && isNotBlank()
-                                                    //       for each of the 8 machine-config fields, called the matching
-                                                    //       txWrite*() function directly, and reset the flag inline.
-                                                    //       Moved all that orchestration to ViewModel.writeMachineConfig().
-                                                    //       Unmodified fields are passed as null (skipped); the composable
-                                                    //       only clears modified flags and shows the toast after the call.
-                                                    /* Handle button click → WRITE Brew & Temperature Configuration */
-                                                    keyboardController?.hide()
-                                                    val anyModified = viewModel.writeMachineConfig(
-                                                        brewTempPreset  = if (cBrewTempPresetTB.modified    && cBrewTempPresetTB.userInput.text.isNotBlank())         cBrewTempPresetTB.userInput.text.toFloat()         else null,
-                                                        steamTempPreset = if (cSteamTempPresetTB.modified       && cSteamTempPresetTB.userInput.text.isNotBlank())       cSteamTempPresetTB.userInput.text.toFloat()       else null,
-                                                        preInfPwr  = if (cPreinfusionPWR_TB.modified  && cPreinfusionPWR_TB.userInput.text.isNotBlank())  cPreinfusionPWR_TB.userInput.text.toFloat()  else null,
-                                                        preInfTmr  = if (cPreinfusionTMR_TB.modified  && cPreinfusionTMR_TB.userInput.text.isNotBlank())  cPreinfusionTMR_TB.userInput.text.toFloat()  else null,
-                                                        infPwr     = if (cInfusionPWR_TB.modified     && cInfusionPWR_TB.userInput.text.isNotBlank())     cInfusionPWR_TB.userInput.text.toFloat()     else null,
-                                                        infTmr     = if (cInfusionTMR_TB.modified     && cInfusionTMR_TB.userInput.text.isNotBlank())     cInfusionTMR_TB.userInput.text.toFloat()     else null,
-                                                        declPwr    = if (cDeclinPrPWR_TB.modified     && cDeclinPrPWR_TB.userInput.text.isNotBlank())     cDeclinPrPWR_TB.userInput.text.toFloat()     else null,
-                                                        declTmr    = if (cDeclinPrTMR_TB.modified     && cDeclinPrTMR_TB.userInput.text.isNotBlank())     cDeclinPrTMR_TB.userInput.text.toFloat()     else null,
-                                                    )
-                                                    if (anyModified) {
-                                                        listOf(cBrewTempPresetTB, cSteamTempPresetTB, cPreinfusionPWR_TB, cPreinfusionTMR_TB,
-                                                               cInfusionPWR_TB, cInfusionTMR_TB, cDeclinPrPWR_TB, cDeclinPrTMR_TB
-                                                        ).forEach { it.modified = false }
-                                                        Toast.makeText(context, "Sending modified configuration", Toast.LENGTH_LONG).show()
-                                                    } else {
-                                                        Toast.makeText(context, "No fields have been modified", Toast.LENGTH_SHORT).show()
-                                                    }
+                                Text(text = "Write",
+                                    style = TextStyle(
+                                        fontSize = tokens.ButtonType2_Font,
+                                        color = busyButtonTextColor
+                                    ),
+                                    modifier = Modifier.pointerInput(isBusy) {
+                                        detectTapGestures(
+                                            onTap = onTap@{
+                                            if (isBusy) return@onTap
+                                                Toast.makeText(context, "click", Toast.LENGTH_SHORT).show()
+                                            },
+                                            onDoubleTap = onDoubleTap@{
+                                            if (isBusy) return@onDoubleTap
+                                                // TLDR: Replaced a 50-line block that checked modified && isNotBlank()
+                                                //       for each of the 8 machine-config fields, called the matching
+                                                //       txWrite*() function directly, and reset the flag inline.
+                                                //       Moved all that orchestration to ViewModel.writeMachineConfig().
+                                                //       Unmodified fields are passed as null (skipped); the composable
+                                                //       only clears modified flags and shows the toast after the call.
+                                                /* Handle button click → WRITE Brew & Temperature Configuration */
+                                                keyboardController?.hide()
+                                                val anyModified = viewModel.writeMachineConfig(
+                                                    brewTempPreset  = if (cBrewTempPresetTB.modified    && cBrewTempPresetTB.userInput.text.isNotBlank())         cBrewTempPresetTB.userInput.text.toFloat()         else null,
+                                                    steamTempPreset = if (cSteamTempPresetTB.modified       && cSteamTempPresetTB.userInput.text.isNotBlank())       cSteamTempPresetTB.userInput.text.toFloat()       else null,
+                                                    preInfPwr  = if (cPreinfusionPWR_TB.modified  && cPreinfusionPWR_TB.userInput.text.isNotBlank())  cPreinfusionPWR_TB.userInput.text.toFloat()  else null,
+                                                    preInfTmr  = if (cPreinfusionTMR_TB.modified  && cPreinfusionTMR_TB.userInput.text.isNotBlank())  cPreinfusionTMR_TB.userInput.text.toFloat()  else null,
+                                                    infPwr     = if (cInfusionPWR_TB.modified     && cInfusionPWR_TB.userInput.text.isNotBlank())     cInfusionPWR_TB.userInput.text.toFloat()     else null,
+                                                    infTmr     = if (cInfusionTMR_TB.modified     && cInfusionTMR_TB.userInput.text.isNotBlank())     cInfusionTMR_TB.userInput.text.toFloat()     else null,
+                                                    declPwr    = if (cDeclinPrPWR_TB.modified     && cDeclinPrPWR_TB.userInput.text.isNotBlank())     cDeclinPrPWR_TB.userInput.text.toFloat()     else null,
+                                                    declTmr    = if (cDeclinPrTMR_TB.modified     && cDeclinPrTMR_TB.userInput.text.isNotBlank())     cDeclinPrTMR_TB.userInput.text.toFloat()     else null,
+                                                )
+                                                if (anyModified) {
+                                                    listOf(cBrewTempPresetTB, cSteamTempPresetTB, cPreinfusionPWR_TB, cPreinfusionTMR_TB,
+                                                           cInfusionPWR_TB, cInfusionTMR_TB, cDeclinPrPWR_TB, cDeclinPrTMR_TB
+                                                    ).forEach { it.modified = false }
+                                                    Toast.makeText(context, "Sending modified configuration", Toast.LENGTH_LONG).show()
+                                                } else {
+                                                    Toast.makeText(context, "No fields have been modified", Toast.LENGTH_SHORT).show()
                                                 }
-                                            )
-                                        }
+                                            }
+                                        )
+                                    }
 
-                                    )
-                                }
+                                )
                             }
                         }
                     }
                 }
             }
-            // video 1-> Time-Stamp: 1:25:10
         }
+        // video 1-> Time-Stamp: 1:25:10
     }
 
 }

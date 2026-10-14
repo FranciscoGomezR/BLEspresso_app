@@ -21,6 +21,7 @@ import com.example.blespresso.data.RemoteControlReceiveManager
 import com.example.blespresso.utilities.Resource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -168,6 +169,8 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     private var gatt: BluetoothGatt? = null
     //This is a flag
     private var isScanning = false
+    // STATUS #15: stops the scan after SCAN_TIMEOUT_MSECS when no machine is found
+    private var scanTimeoutJob: Job? = null
     //this is to collect data by  the viewModel, then emit data to our flow then to the UI
     private val coroutineScope = CoroutineScope(Dispatchers.Default)
 
@@ -195,6 +198,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
                     //result.device.connectGatt(context,false,gattCallback,BluetoothDevice.TRANSPORT_LE)
                     result.device.connectGatt(context, false, gattCallback)
                     isScanning = false
+                    scanTimeoutJob?.cancel()
                     bleScanner.stopScan(this)
                 }
             }
@@ -958,8 +962,24 @@ class RemoteControlBLEReceiveManager @Inject constructor(
         coroutineScope.launch{
             data.emit(Resource.Loading(message = "CONNECT \nTO ESPRESSO \nMACHINE"))
         }
+        currentConnectionAttempt = 1
         isScanning = true
         bleScanner.startScan(null, scanSettings, scanCallback)
+        startScanTimeout()
+    }
+
+    // TLDR: STATUS #15 - no machine found within SCAN_TIMEOUT_MSECS -> stop scan, emit timeout error.
+    private fun startScanTimeout() {
+        scanTimeoutJob?.cancel()
+        scanTimeoutJob = coroutineScope.launch {
+            delay(RemoteControlReceiveManager.SCAN_TIMEOUT_MSECS)
+            if (isScanning) {
+                isScanning = false
+                bleScanner.stopScan(scanCallback)
+                Log.w("BluetoothGatt", "scan timeout: no $DEVICE_NAME found")
+                data.emit(Resource.Error(errorMessage = RemoteControlReceiveManager.SCAN_TIMEOUT_MSG))
+            }
+        }
     }
 
     //
@@ -982,6 +1002,7 @@ class RemoteControlBLEReceiveManager @Inject constructor(
     // vide 1-> Time-Stamp: 53:00
     // No CCCD disable writes: firmware (no bonding) resets every CCCD on disconnect.
     override fun closeConnection() {
+        scanTimeoutJob?.cancel()
         bleScanner.stopScan(scanCallback)
         cccdQueue.clear()
         gatt?.close()

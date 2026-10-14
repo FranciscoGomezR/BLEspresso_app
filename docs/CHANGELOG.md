@@ -10,6 +10,39 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-10-14 — ConnectScreen + scan timeout + demo mode (STATUS TODO #15)
+
+Why: decouple permissions / BLE connect from RemoteControlScreen; scan never ended without a
+machine; let users try the app without one.
+
+### Added
+- `presentation/ConnectScreen.kt`: permissions, scan/connect spinner, error + Try again, scan
+  timeout dialog (Retry / Continue without machine). Route `connect_screen`
+  (Start -> Connect -> Main).
+- `RemoteControlReceiveManager`: `SCAN_TIMEOUT_MSECS` (10 s), `SCAN_TIMEOUT_MSG`.
+- `RemoteControlBLEReceiveManager.kt`: scan timeout job (cancelled on device found / close);
+  emits `Resource.Error(SCAN_TIMEOUT_MSG)`; `startConnection()` resets connection attempts.
+- `RemoteControlViewModel.kt`: `isDemoMode`, `isScanTimeout`, `isUiLocked` (busy || demo),
+  `lockMessage`, `enterDemoMode()` (all 0, emits loaded flows), `retryConnection()`.
+
+### Changed
+- `Navigation.kt`: one activity-scoped `RemoteControlViewModel` passed to all screens.
+- `StartScreen.kt`: CONNECT -> ConnectScreen.
+- `RemoteControlScreen.kt`: permission / spinner / error UI removed; lifecycle reconnect /
+  disconnect skipped in demo; unrecoverable error -> back to ConnectScreen. READ / WRITE +
+  textboxes use `isUiLocked`; Controller button only on `isMachineBusy`. Dead
+  `MoveToOtherScreen` removed.
+- `ControllerParameterScreen.kt`: no `initiazeConnection()`; lock via `isUiLocked`.
+- Write guards (`writeMachineConfig`, `writePIDConfig`) use `isUiLocked`.
+
+### Fixed
+- "Try again" did nothing (`initiazeConnection()` one-shot guard) -> `retryConnection()`.
+- `AppFooter.kt`: typo `modifierS` broke the build.
+
+### Verified
+- Device: timeout + demo, normal connect + data load, #10 busy lock, permissions denied,
+  minimise / restore reconnect.
+
 ## 2026-10-14 — App version + company footer (STATUS TODO #14)
 
 Why: show app version and company name at the bottom of every screen.

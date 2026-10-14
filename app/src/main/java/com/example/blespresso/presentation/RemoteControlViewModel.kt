@@ -48,6 +48,27 @@ class  RemoteControlViewModel @Inject constructor(
     val isMachineBusy: Boolean
         get() = machineStatus?.state.let { it != null && (it in 0x03..0x06 || it == 0x08) }
 
+    // STATUS #15 demo mode: user chose to continue without a machine after scan timeout.
+    // All values 0, READ / WRITE blocked, no BLE traffic. Exit = restart app.
+    var isDemoMode by mutableStateOf(false)
+        private set
+
+    // STATUS #15: scan ended without finding the machine -> ConnectScreen shows Retry / Demo prompt.
+    var isScanTimeout by mutableStateOf(false)
+        private set
+
+    // READ / WRITE buttons + textboxes lock: machine busy (#10) or demo (#15).
+    val isUiLocked: Boolean
+        get() = isMachineBusy || isDemoMode
+
+    // Text above the button row; "" keeps the reserved space.
+    val lockMessage: String
+        get() = when {
+            isDemoMode    -> "Demo mode"
+            isMachineBusy -> "Machine busy"
+            else          -> ""
+        }
+
     // 0x1404 brew / 0x1405 steam temperature presets (editable)
     var brewTempPreset by mutableStateOf(0f)
         public set
@@ -95,6 +116,7 @@ class  RemoteControlViewModel @Inject constructor(
 
                     is Resource.Error -> {
                         errorMessage = result.errorMessage
+                        isScanTimeout = result.errorMessage == RemoteControlReceiveManager.SCAN_TIMEOUT_MSG
                         connectionState = ConnectionState.Uninitialized
                         machineStatus = null
                     }
@@ -323,6 +345,31 @@ class  RemoteControlViewModel @Inject constructor(
         remoteControlReceiveManager.startConnection()
     }
 
+    // STATUS #15: rescan after timeout / connect error (initiazeConnection is one-shot).
+    fun retryConnection() {
+        errorMessage = null
+        isScanTimeout = false
+        remoteControlReceiveManager.startConnection()
+    }
+
+    // STATUS #15: zero every value and push them to the textboxes via the loaded flows.
+    fun enterDemoMode() {
+        isDemoMode = true
+        isScanTimeout = false
+        errorMessage = null
+        machineStatus = null
+        boilerWaterTemp = 0f
+        boilerTempSetpoint = 0f
+        brewTempPreset = 0f
+        steamTempPreset = 0f
+        brewConfigData = C_BrewConfigData()
+        pIDConfigData = C_PIDConfigData()
+        viewModelScope.launch {
+            _machineConfigLoaded.emit(Unit)
+            _pidConfigLoaded.emit(Unit)
+        }
+    }
+
     fun sendCommandToDrone() {
         //Log.d("RemScrViewModel","Slide Bar status: $throttle")
         //Log.d("RemScrViewModel","Roll status: $rollAngle")
@@ -398,8 +445,8 @@ class  RemoteControlViewModel @Inject constructor(
         pTerm: Float?, iTerm: Float?, iMax: Float?,
         dTerm: Float?, pBoost: Float?, iBoost: Float?
     ): Boolean {
-        if (isMachineBusy) {
-            Log.w("RemoteCtrlViewModel", "writePIDConfig blocked: machine busy")
+        if (isUiLocked) {
+            Log.w("RemoteCtrlViewModel", "writePIDConfig blocked: machine busy / demo")
             return false
         }
         var anyModified = false
@@ -422,8 +469,8 @@ class  RemoteControlViewModel @Inject constructor(
         infPwr: Float?,    infTmr: Float?,
         declPwr: Float?,   declTmr: Float?
     ): Boolean {
-        if (isMachineBusy) {
-            Log.w("RemoteCtrlViewModel", "writeMachineConfig blocked: machine busy")
+        if (isUiLocked) {
+            Log.w("RemoteCtrlViewModel", "writeMachineConfig blocked: machine busy / demo")
             return false
         }
         var anyModified = false

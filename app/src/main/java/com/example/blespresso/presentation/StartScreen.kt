@@ -35,7 +35,7 @@ fun StartScreen(navController: NavController){
                 .background(accent_indic, CircleShape)
                 .clickable {
                     //Navigate
-                    navController.navigate(Screen.BlespressoMainScreen.route) {
+                    navController.navigate(Screen.ConnectScreen.route) {
                         popUpTo(Screen.StartScreen.route){
                             inclusive = true
                         }

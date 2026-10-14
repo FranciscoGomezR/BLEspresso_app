@@ -38,7 +38,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.blespresso.data.ConnectionState
 import com.example.blespresso.presentation.permissions.SystemBroadcastReceiver
@@ -58,14 +57,13 @@ import com.example.blespresso.ui.theme.icon_off
 import com.example.blespresso.ui.theme.surface
 import com.example.blespresso.ui.theme.textbox_background
 import com.example.blespresso.ui.theme.textbox_text
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
 
-@OptIn(ExperimentalComposeUiApi::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun BlespressoCtrlParamScreen(
     navController: NavController,
     onBluetoothStateChanged:()->Unit,
-    viewModel: RemoteControlViewModel = hiltViewModel()
+    viewModel: RemoteControlViewModel
 ) {
     //screen content
     // TLDR: Replaced 14 lines of per-field min/max assignments (e.g. cPterm_TB.maxInValue = 100.0f) with a single
@@ -81,17 +79,12 @@ fun BlespressoCtrlParamScreen(
     // Get the software keyboard controller
     val keyboardController = LocalSoftwareKeyboardController.current
     // TODO #10 busy lock (brewing / steaming): buttons disabled, textboxes read-only
-    val isBusy = viewModel.isMachineBusy
+    // STATUS #15: also locked in demo mode
+    val isBusy = viewModel.isUiLocked
     val busyButtonColors = ButtonDefaults.buttonColors(backgroundColor = accent, disabledBackgroundColor = surface)
     val busyButtonTextColor = if (isBusy) icon_off else on_accent
     val context = LocalContext.current
 
-    // LaunchedEffect that runs only once when this composable is first composed
-    LaunchedEffect(Unit) {
-        // Perform an action, such as initializing data or calling a ViewModel function
-        Log.d("ScreenNavigation", "Trigger a BLE connection")
-        viewModel.initiazeConnection()  // Or any other operation you want to run once
-    }
     //this function will run if there is a change from the phone's control panel
     SystemBroadcastReceiver(systemAction = BluetoothAdapter.ACTION_STATE_CHANGED)
     { bluetoothState ->
@@ -647,7 +640,7 @@ fun BlespressoCtrlParamScreen(
                     //  ROW to allocate the following buttons:
                     //  To READ and WRITE --------------------------------------------
                     Text( // TODO #10 busy lock message (space reserved, no layout jump)
-                        text = if (isBusy) "Machine busy" else "",
+                        text = viewModel.lockMessage,
                         style = TextStyle(fontSize = 13.sp, color = textprimary, textAlign = TextAlign.Center),
                         modifier = Modifier.padding(top = 8.dp).size(width = 380.dp, height = 18.dp)
                     )

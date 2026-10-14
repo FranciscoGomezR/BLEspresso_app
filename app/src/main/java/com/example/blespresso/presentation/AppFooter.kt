@@ -25,7 +25,7 @@ fun AppFooter(modifier: Modifier = Modifier) {
         color = textsecondary,
         fontSize = 11.sp,
         textAlign = TextAlign.Center,
-        modifier = modifierS
+        modifier = modifier
             .fillMaxWidth()
             .background(background)
             .navigationBarsPadding()

@@ -13,6 +13,12 @@ import kotlinx.coroutines.flow.SharedFlow
 
 interface RemoteControlReceiveManager
 {
+    companion object {
+        // STATUS #15: scan gives up after this time; VM detects it by the error message.
+        const val SCAN_TIMEOUT_MSECS = 10_000L
+        const val SCAN_TIMEOUT_MSG = "No espresso machine found"
+    }
+
     //Our ReceiveManager need to realize the concrete implementation of:
     val data:MutableSharedFlow<Resource<BoilerDataResult>>
     val dataToWrite:MutableSharedFlow<Resource<BoilerDataResult>>
