@@ -10,6 +10,23 @@ Categories: `Added` `Changed` `Removed` `Fixed` `Docs` `Breaking`.
 
 ---
 
+## 2026-10-14 — App version + company footer (STATUS TODO #14)
+
+Why: show app version and company name at the bottom of every screen.
+
+### Added
+- `presentation/AppFooter.kt`: one centred line `V<BuildConfig.VERSION_NAME> · <company_name>`,
+  11 sp, `textsecondary` on `background` (follows light/dark), above navigation bar.
+- `res/values/strings.xml`: `company_name` = `FranciscoGomezR`.
+
+### Changed
+- `presentation/Navigation.kt`: `Column { Box(weight 1f) { NavHost } ; AppFooter() }` — fixed
+  footer on all screens, content never overlapped; no per-screen edits.
+- `app/build.gradle`: `versionName` 1.0 -> 0.1 (versionCode unchanged, 1).
+
+### Verified
+- Device: footer visible on Start, Main, Controller screens; light/dark OK.
+
 ## 2026-10-12 — Light/dark theme switch (STATUS TODO #13)
 
 Why: let the user choose Gaggia light or dark in the app (system dark mode ignored).

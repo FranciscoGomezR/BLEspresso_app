@@ -18,12 +18,12 @@ object ThemePrefs {
 
     fun load(context: Context) {
         val key = prefs(context).getString(KEY_PALETTE, VALUE_LIGHT)
-        activePalette = if (key == VALUE_DARK) PALETTE_GAGGIA_DARK else PALETTE_GAGGIA_LIGHT
+        activePalette = if (key == VALUE_DARK) PALETTE_GAGGIA_DARK else PALETTE_CLASSIC
     }
 
     fun toggle(context: Context) {
         val toDark = !isDark
-        activePalette = if (toDark) PALETTE_GAGGIA_DARK else PALETTE_GAGGIA_LIGHT
+        activePalette = if (toDark) PALETTE_GAGGIA_DARK else PALETTE_CLASSIC
         prefs(context).edit()
             .putString(KEY_PALETTE, if (toDark) VALUE_DARK else VALUE_LIGHT)
             .apply()
