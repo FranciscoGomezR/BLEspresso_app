@@ -283,7 +283,9 @@ Everyt time a developer or AID agent works on an item in this list shall update 
         assess if creating a new screen is an elegant/easy implementation. Also, when user pressed "CONNECT TO ESPRESSO MACHINE" and there is no BLE devices found after 10seconds, it shall prompt a message, asking for permision to pass BLe connection, so user can experience the app without interaction; for this particular case; app shall inserts "0" in all paramater from the app and BLE CHAR. 
         Block WRITE, READ in RemoteControlScreen.kt and ControllerParameterScreen.kt
 
-- 16[]  Assess current application's code structure for: BLE functions, Kotlin and android. propose a plan to re-arrange the code to aligned it against good practices and to make it more efficient.
+- 16[] Move Button: "Main" in Read/Write row, place it to left; "Read" + "Write" remain right. Buttons row directly under controller parameters table.
+
+- 17[]  Assess current application's code structure for: BLE functions, Kotlin and android. propose a plan to re-arrange the code to aligned it against good practices and to make it more efficient.
 
 
 - []
