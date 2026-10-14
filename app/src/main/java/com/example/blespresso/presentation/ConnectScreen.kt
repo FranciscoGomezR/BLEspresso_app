@@ -6,16 +6,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.AlertDialog
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
-import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -31,8 +34,12 @@ import androidx.navigation.NavController
 import com.example.blespresso.data.ConnectionState
 import com.example.blespresso.presentation.permissions.PermissionUtils
 import com.example.blespresso.presentation.permissions.SystemBroadcastReceiver
+import com.example.blespresso.ui.theme.accent
 import com.example.blespresso.ui.theme.accent_indic
 import com.example.blespresso.ui.theme.background_indic
+import com.example.blespresso.ui.theme.on_accent
+import com.example.blespresso.ui.theme.textbox_background
+import com.example.blespresso.ui.theme.textbox_text
 import com.example.blespresso.ui.theme.textprimary_indic
 import com.example.blespresso.ui.theme.textsecondary_indic
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -56,6 +63,7 @@ fun ConnectScreen(
     val permissionState = rememberMultiplePermissionsState(permissions = PermissionUtils.permissions)
     val lifecycleOwner = LocalLifecycleOwner.current
     val bleConnectionState = viewModel.connectionState
+    val dialogButtonColors = ButtonDefaults.buttonColors(backgroundColor = accent, contentColor = on_accent)
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -93,19 +101,37 @@ fun ConnectScreen(
                 modifier = Modifier.padding(10.dp),
                 textAlign = TextAlign.Center
             )
+            // Lighter dialog background (textbox_background) for button contrast
             viewModel.isScanTimeout -> AlertDialog(
                 onDismissRequest = {},
-                title = { Text(text = "No espresso machine found") },
-                text = { Text(text = "Retry the scan, or continue without a machine (demo mode: " +
-                        "all values 0, Read / Write disabled). Restart the app to leave demo mode.") },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.retryConnection() }) { Text(text = "Retry") }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        viewModel.enterDemoMode()
-                        navigateToMain(navController)
-                    }) { Text(text = "Continue without machine") }
+                backgroundColor = textbox_background,
+                contentColor = textbox_text,
+                buttons = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "No espresso machine found",
+                            style = MaterialTheme.typography.h6,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(32.dp))
+                        Button(
+                            onClick = {
+                                viewModel.enterDemoMode()
+                                navigateToMain(navController)
+                            },
+                            colors = dialogButtonColors,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(text = "Continue without machine") }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.retryConnection() },
+                            colors = dialogButtonColors,
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(text = "Retry connection") }
+                    }
                 }
             )
             viewModel.errorMessage != null -> Column(
